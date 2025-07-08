@@ -1,0 +1,748 @@
+{
+    "info": {
+        "_postman_id": "support-chat-api-collection",
+        "name": "Support Chat API Collection",
+        "description": "Complete API collection for the Laravel Support Chat System with Reverb WebSockets",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8000",
+            "type": "string"
+        },
+        {
+            "key": "auth_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "chat_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "message_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "filename",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{auth_token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/login",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login with email and password. Returns token and user data."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Register",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"role\": \"user\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/register",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "register"]
+                        },
+                        "description": "Register a new user. Role can be 'user' or 'agent'."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/logout",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "logout"]
+                        },
+                        "description": "Logout the authenticated user and revoke token."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get User",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/user",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "user"]
+                        },
+                        "description": "Get the authenticated user's information."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Authentication endpoints for login, register, logout, and user info."
+        },
+        {
+            "name": "Chats",
+            "item": [
+                {
+                    "name": "Create Chat (Guest)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Guest User\",\n  \"email\": \"guest@example.com\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/chats",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats"]
+                        },
+                        "description": "Create a new chat (no authentication required for guest users)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get All Chats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/chats",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats"]
+                        },
+                        "description": "Get all chats for the authenticated user (or agent)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Chat by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}"]
+                        },
+                        "description": "Get a specific chat by its UUID."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Chat",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"closed\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}"]
+                        },
+                        "description": "Update a chat (e.g., change status to 'waiting', 'active', 'closed')."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Chat",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}"]
+                        },
+                        "description": "Delete a chat."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Chat management endpoints for creating, reading, updating, and deleting chats."
+        },
+        {
+            "name": "Messages",
+            "item": [
+                {
+                    "name": "Get Chat Messages",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}/messages",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}", "messages"]
+                        },
+                        "description": "Get all messages for a specific chat with pagination."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Send Message",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"content\": \"Hello, this is a test message!\",\n  \"type\": \"text\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}/messages",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}", "messages"]
+                        },
+                        "description": "Send a new message in a chat. Types: text, file, image, voice, system."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Send File Message",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"content\": \"Check out this file!\",\n  \"type\": \"file\",\n  \"file_url\": \"https://example.com/file.pdf\",\n  \"file_name\": \"document.pdf\",\n  \"file_size\": 1024000\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}/messages",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}", "messages"]
+                        },
+                        "description": "Send a file message with file details."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Send Voice Message",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"content\": \"Voice message\",\n  \"type\": \"voice\",\n  \"file_url\": \"https://example.com/voice.mp3\",\n  \"file_name\": \"voice_message.mp3\",\n  \"file_size\": 512000,\n  \"voice_duration\": 30\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}/messages",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}", "messages"]
+                        },
+                        "description": "Send a voice message with duration information."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Mark Message as Read",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/messages/{{message_id}}/read",
+                            "host": ["{{base_url}}"],
+                            "path": [
+                                "api",
+                                "messages",
+                                "{{message_id}}",
+                                "read"
+                            ]
+                        },
+                        "description": "Mark a specific message as read."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Message management endpoints for sending and managing chat messages."
+        },
+        {
+            "name": "File Uploads",
+            "item": [
+                {
+                    "name": "Upload File",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "src": []
+                                },
+                                {
+                                    "key": "chat_id",
+                                    "value": "{{chat_id}}",
+                                    "type": "text"
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/files/upload",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "files", "upload"]
+                        },
+                        "description": "Upload a file for a specific chat. Max file size: 10MB. Allowed types: jpg,jpeg,png,gif,pdf,doc,docx,txt"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete File",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"path\": \"chat-files/chat-uuid/filename.ext\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/files",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "files"]
+                        },
+                        "description": "Delete a file by its storage path."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get File Info",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/files/{{filename}}/info",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "files", "{{filename}}", "info"]
+                        },
+                        "description": "Get information about a specific file."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "File upload and management endpoints."
+        },
+        {
+            "name": "Typing Indicators",
+            "item": [
+                {
+                    "name": "Update Typing Status",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"isTyping\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}/typing",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}", "typing"]
+                        },
+                        "description": "Update typing status for a chat (true = typing, false = stopped typing)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Typing Statuses",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/{{chat_id}}/typing",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "chats", "{{chat_id}}", "typing"]
+                        },
+                        "description": "Get all active typing statuses for a chat."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cleanup Expired Typing",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/typing/cleanup",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "typing", "cleanup"]
+                        },
+                        "description": "Clean up expired typing statuses (utility endpoint)."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Typing indicator endpoints for real-time typing status updates."
+        },
+        {
+            "name": "Agent Operations",
+            "item": [
+                {
+                    "name": "Get Agent Chats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/agent/chats",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "agent", "chats"]
+                        },
+                        "description": "Get all chats for agent dashboard (assigned + waiting)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Assign Chat to Agent",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/agent/chats/{{chat_id}}/assign",
+                            "host": ["{{base_url}}"],
+                            "path": [
+                                "api",
+                                "agent",
+                                "chats",
+                                "{{chat_id}}",
+                                "assign"
+                            ]
+                        },
+                        "description": "Assign a waiting chat to the current agent."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Close Chat",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/agent/chats/{{chat_id}}/close",
+                            "host": ["{{base_url}}"],
+                            "path": [
+                                "api",
+                                "agent",
+                                "chats",
+                                "{{chat_id}}",
+                                "close"
+                            ]
+                        },
+                        "description": "Close a chat (agent only)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Agent Status",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"available\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/agent/status",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "agent", "status"]
+                        },
+                        "description": "Update agent status (available, busy, offline)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Agent Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/agent/stats",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "agent", "stats"]
+                        },
+                        "description": "Get agent statistics (active chats, total chats, waiting chats, closed today)."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Agent-specific operations for managing chats and status."
+        }
+    ],
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    "// Auto-set auth token from login response",
+                    "if (pm.response && pm.response.code === 200) {",
+                    "    const response = pm.response.json();",
+                    "    if (response.token) {",
+                    "        pm.collectionVariables.set('auth_token', response.token);",
+                    "    }",
+                    "    if (response.chat && response.chat.id) {",
+                    "        pm.collectionVariables.set('chat_id', response.chat.id);",
+                    "    }",
+                    "    if (response.id) {",
+                    "        pm.collectionVariables.set('message_id', response.id);",
+                    "    }",
+                    "}"
+                ]
+            }
+        }
+    ]
+}
