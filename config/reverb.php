@@ -1,36 +1,13 @@
 <?php
 
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Default Reverb Server
-    |--------------------------------------------------------------------------
-    |
-    | This option controls the default server used by Reverb to handle
-    | incoming messages as well as broadcasting message to all your
-    | connected clients. At this time only "reverb" is supported.
-    |
-    */
-
     'default' => env('REVERB_SERVER', 'reverb'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reverb Servers
-    |--------------------------------------------------------------------------
-    |
-    | Here you may define details for each of the supported Reverb servers.
-    | Each server has its own configuration options that are defined in
-    | the array below. You should ensure all the options are present.
-    |
-    */
 
     'servers' => [
 
         'reverb' => [
-            'host' => env('REVERB_SERVER_HOST', '0.0.0.0'),
-            'port' => env('REVERB_SERVER_PORT', 8080),
+            'host' => env('REVERB_HOST', '0.0.0.0'),
+            'port' => env('REVERB_PORT', 8080),
             'path' => env('REVERB_SERVER_PATH', ''),
             'hostname' => env('REVERB_HOST'),
             'options' => [

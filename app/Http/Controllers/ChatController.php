@@ -8,6 +8,7 @@ use App\Events\ChatCreated;
 use App\Events\ChatUpdated;
 use App\Services\ChatService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class ChatController extends Controller
 {
@@ -24,20 +25,20 @@ class ChatController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
+
         if ($user->isAgent()) {
             // Return chats assigned to this agent
             $chats = Chat::with(['user', 'agent', 'messages', 'latestMessage'])
-                        ->where('agent_id', $user->id)
-                        ->orWhere('status', 'waiting')
-                        ->orderBy('updated_at', 'desc')
-                        ->get();
+                ->where('agent_id', $user->id)
+                ->orWhere('status', 'waiting')
+                ->orderBy('updated_at', 'desc')
+                ->get();
         } else {
             // Return chats for this user
             $chats = Chat::with(['user', 'agent', 'messages', 'latestMessage'])
-                        ->where('user_id', $user->id)
-                        ->orderBy('updated_at', 'desc')
-                        ->get();
+                ->where('user_id', $user->id)
+                ->orderBy('updated_at', 'desc')
+                ->get();
         }
 
         return response()->json($chats->map(function ($chat) {
@@ -56,7 +57,7 @@ class ChatController extends Controller
         ]);
 
         $user = $request->user();
-        
+
         // If no user is authenticated, create a guest user
         if (!$user) {
             $user = User::create([
@@ -80,8 +81,8 @@ class ChatController extends Controller
     public function show(Request $request, $chatId)
     {
         $chat = Chat::with(['user', 'agent', 'messages.user'])
-                   ->where('uuid', $chatId)
-                   ->firstOrFail();
+            ->where('uuid', $chatId)
+            ->firstOrFail();
 
         // Check if user has access to this chat
         $user = $request->user();
@@ -102,7 +103,7 @@ class ChatController extends Controller
         ]);
 
         $chat = Chat::where('uuid', $chatId)->firstOrFail();
-        
+
         // Check if user has access to this chat
         $user = $request->user();
         if (!$this->userCanAccessChat($user, $chat)) {
@@ -128,7 +129,7 @@ class ChatController extends Controller
     public function destroy(Request $request, $chatId)
     {
         $chat = Chat::where('uuid', $chatId)->firstOrFail();
-        
+
         // Check if user has access to this chat
         $user = $request->user();
         if (!$this->userCanAccessChat($user, $chat)) {

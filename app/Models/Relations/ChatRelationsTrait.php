@@ -2,6 +2,7 @@
 
 namespace App\Models\Relations;
 
+use App\Models\Message;
 use App\Models\User;
 
 trait ChatRelationsTrait
