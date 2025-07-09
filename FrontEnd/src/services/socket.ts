@@ -5,21 +5,21 @@ import demoSocket from './demoSocket';
 declare global {
   interface Window {
     Pusher: typeof Pusher;
-    Echo: Echo;
+    Echo: Echo<any>;
   }
 }
 
 window.Pusher = Pusher;
 
 class SocketService {
-  private echo: Echo | null = null;
+  private echo: Echo<any> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private isDemoMode: boolean;
 
   constructor() {
     this.isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    
+
     if (this.isDemoMode) {
       console.log('🎭 Socket running in DEMO MODE');
     } else {
@@ -29,6 +29,22 @@ class SocketService {
 
   private initializeEcho() {
     try {
+      const token = localStorage.getItem('auth_token');
+      console.log('Initializing Echo with token:', token);
+      console.log('Environment variables:', {
+        VITE_PUSHER_APP_KEY: import.meta.env.VITE_PUSHER_APP_KEY,
+        VITE_PUSHER_HOST: import.meta.env.VITE_PUSHER_HOST,
+        VITE_PUSHER_PORT: import.meta.env.VITE_PUSHER_PORT,
+        VITE_PUSHER_SCHEME: import.meta.env.VITE_PUSHER_SCHEME,
+        VITE_PUSHER_CLUSTER: import.meta.env.VITE_PUSHER_CLUSTER,
+        VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+      });
+
+      if (!token) {
+        console.warn('No auth token found, cannot initialize Echo');
+        return;
+      }
+
       this.echo = new Echo({
         broadcaster: 'pusher',
         key: import.meta.env.VITE_PUSHER_APP_KEY,
@@ -39,13 +55,15 @@ class SocketService {
         cluster: import.meta.env.VITE_PUSHER_CLUSTER,
         disableStats: true,
         enabledTransports: ['ws', 'wss'],
+        authEndpoint: `${import.meta.env.VITE_API_BASE_URL}/broadcasting/auth`,
         auth: {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       });
 
+      console.log('Echo instance created:', this.echo);
       this.setupConnectionHandlers();
     } catch (error) {
       console.error('Failed to initialize Echo:', error);
@@ -54,10 +72,21 @@ class SocketService {
   }
 
   private setupConnectionHandlers() {
-    if (!this.echo) return;
+    if (!this.echo) {
+      console.error('Cannot setup connection handlers: Echo is null');
+      return;
+    }
+
+    console.log('Setting up connection handlers...');
+    console.log('Echo connector:', this.echo.connector);
+    console.log('Pusher connection:', this.echo.connector.pusher.connection);
+
+    this.echo.connector.pusher.connection.bind('connecting', () => {
+      console.log('WebSocket connecting...');
+    });
 
     this.echo.connector.pusher.connection.bind('connected', () => {
-      console.log('WebSocket connected');
+      console.log('WebSocket connected successfully');
       this.reconnectAttempts = 0;
     });
 
@@ -70,6 +99,13 @@ class SocketService {
       console.error('WebSocket error:', error);
       this.handleReconnection();
     });
+
+    this.echo.connector.pusher.connection.bind(
+      'state_change',
+      (states: any) => {
+        console.log('WebSocket state change:', states);
+      }
+    );
   }
 
   private handleReconnection() {
@@ -83,36 +119,146 @@ class SocketService {
   }
 
   // Chat channels
-  joinChatChannel(chatId: string, callbacks: {
-    onMessage?: (message: any) => void;
-    onTyping?: (typing: any) => void;
-    onAgentJoined?: (agent: any) => void;
-    onAgentLeft?: (agent: any) => void;
-  }) {
+  joinChatChannel(
+    chatId: string,
+    callbacks: {
+      onMessage?: (message: any) => void;
+      onTyping?: (typing: any) => void;
+      onAgentJoined?: (agent: any) => void;
+      onAgentLeft?: (agent: any) => void;
+    }
+  ) {
     if (this.isDemoMode) {
       return demoSocket.joinChatChannel(chatId, callbacks);
     }
 
-    if (!this.echo) return null;
+    if (!this.echo) {
+      console.error('Chat: Echo not initialized for chat:', chatId);
+      return null;
+    }
 
+    console.log(
+      'Chat: WebSocket connection state:',
+      this.echo.connector.pusher.connection.state
+    );
+    console.log(
+      'Chat: Auth token available:',
+      !!localStorage.getItem('auth_token')
+    );
+
+    console.log('Chat: Joining channel:', `chat.${chatId}`);
     const channel = this.echo.private(`chat.${chatId}`);
 
+    console.log('Chat: Channel object:', channel);
+    console.log(
+      'Chat: Channel methods:',
+      Object.getOwnPropertyNames(Object.getPrototypeOf(channel))
+    );
+    console.log('Chat: Channel properties:', Object.keys(channel));
+    console.log('Chat: Channel listeners:', (channel as any).listeners);
+
+    // Add debugging for channel subscription
+    channel.subscribed(() => {
+      console.log(
+        'Chat: Successfully subscribed to channel:',
+        `chat.${chatId}`
+      );
+    });
+
+    channel.error((error: any) => {
+      console.error('Chat: Channel subscription error:', error);
+    });
+
+    // Listen for all events on this channel for debugging
+    channel.listen('.', (event: any) => {
+      console.log('Chat: Received event on channel:', event);
+    });
+
+    // Also listen for the specific event name that Laravel broadcasts
+    channel.listen('UserTyping', (typing: any) => {
+      console.log(
+        'Chat: UserTyping event received via specific listener:',
+        typing
+      );
+    });
+
+    // Try listening without the event name (Laravel Echo might handle this differently)
+    channel.listen((event: any) => {
+      console.log('Chat: Received event via generic listener:', event);
+    });
+
     if (callbacks.onMessage) {
-      channel.listen('MessageSent', callbacks.onMessage);
+      console.log('Chat: Setting up MessageSent listener');
+      channel.listen('MessageSent', (data: any) => {
+        console.log('Chat: MessageSent event received - full data:', data);
+        // Backend sends message data nested under 'message' key
+        const message = data.message || data;
+        console.log('Chat: Extracted message:', message);
+        callbacks.onMessage!(message);
+      });
     }
 
     if (callbacks.onTyping) {
-      channel.listen('UserTyping', callbacks.onTyping);
+      console.log('Chat: Setting up UserTyping listener');
+      console.log('Chat: Listening for event name: UserTyping');
+      console.log('Chat: Laravel broadcasts with broadcastAs: UserTyping');
+
+      // Try different event name patterns
+      channel.listen('UserTyping', (typing: any) => {
+        console.log('=== SOCKET: UserTyping event received (exact match) ===');
+        console.log('Chat: UserTyping event received - full data:', typing);
+        console.log('Chat: UserTyping event type:', typeof typing);
+        console.log('Chat: UserTyping event keys:', Object.keys(typing));
+        console.log(
+          'Chat: UserTyping event stringified:',
+          JSON.stringify(typing, null, 2)
+        );
+
+        // The backend sends the data directly via broadcastWith()
+        // No need for complex JSON parsing
+        const typingData = typing;
+
+        console.log('Chat: Final processed typing data:', typingData);
+        console.log('Chat: Calling onTyping callback with data:', typingData);
+        callbacks.onTyping!(typingData);
+      });
+
+      // Try with namespace prefix
+      channel.listen('App\\Events\\UserTyping', (typing: any) => {
+        console.log(
+          '=== SOCKET: UserTyping event received (with namespace) ==='
+        );
+        console.log('Chat: UserTyping event received - full data:', typing);
+        callbacks.onTyping!(typing);
+      });
+
+      // Try without broadcastAs (using class name)
+      channel.listen('user-typing', (typing: any) => {
+        console.log('=== SOCKET: UserTyping event received (kebab-case) ===');
+        console.log('Chat: UserTyping event received - full data:', typing);
+        callbacks.onTyping!(typing);
+      });
     }
 
     if (callbacks.onAgentJoined) {
-      channel.listen('AgentJoined', callbacks.onAgentJoined);
+      channel.listen('AgentJoined', (data: any) => {
+        console.log('Chat: AgentJoined event received:', data);
+        // Backend sends agent data nested under 'agent' key
+        const agent = data.agent || data;
+        callbacks.onAgentJoined!(agent);
+      });
     }
 
     if (callbacks.onAgentLeft) {
-      channel.listen('AgentLeft', callbacks.onAgentLeft);
+      channel.listen('AgentLeft', (data: any) => {
+        console.log('Chat: AgentLeft event received:', data);
+        // Backend sends agent data nested under 'agent' key
+        const agent = data.agent || data;
+        callbacks.onAgentLeft!(agent);
+      });
     }
 
+    console.log('Chat: Successfully set up channel listeners for:', chatId);
     return channel;
   }
 
@@ -135,22 +281,43 @@ class SocketService {
       return demoSocket.joinAgentChannel(callbacks);
     }
 
-    if (!this.echo) return null;
+    if (!this.echo) {
+      console.error('Agent: Echo not initialized');
+      return null;
+    }
 
+    console.log('Agent: Attempting to join agent.dashboard channel');
     const channel = this.echo.private('agent.dashboard');
 
     if (callbacks.onNewChat) {
-      channel.listen('NewChatAssigned', callbacks.onNewChat);
+      channel.listen('NewChatAssigned', (data: any) => {
+        console.log('Agent: NewChatAssigned event received:', data);
+        // Backend sends chat data nested under 'chat' key
+        const chat = data.chat || data;
+        callbacks.onNewChat!(chat);
+      });
     }
 
     if (callbacks.onChatUpdate) {
-      channel.listen('ChatUpdated', callbacks.onChatUpdate);
+      channel.listen('ChatUpdated', (data: any) => {
+        console.log('Agent: ChatUpdated event received:', data);
+        // Backend sends chat data nested under 'chat' key
+        const chat = data.chat || data;
+        callbacks.onChatUpdate!(chat);
+      });
     }
 
     if (callbacks.onMessage) {
-      channel.listen('MessageReceived', callbacks.onMessage);
+      channel.listen('MessageSent', (data: any) => {
+        console.log('Agent: MessageSent event received - full data:', data);
+        // Backend sends message data nested under 'message' key
+        const message = data.message || data;
+        console.log('Agent: Extracted message:', message);
+        callbacks.onMessage!(message);
+      });
     }
 
+    console.log('Agent: Successfully set up agent channel listeners');
     return channel;
   }
 
@@ -164,11 +331,14 @@ class SocketService {
   }
 
   // Presence channels
-  joinPresenceChannel(channelName: string, callbacks: {
-    onHere?: (users: any[]) => void;
-    onJoining?: (user: any) => void;
-    onLeaving?: (user: any) => void;
-  }) {
+  joinPresenceChannel(
+    channelName: string,
+    callbacks: {
+      onHere?: (users: any[]) => void;
+      onJoining?: (user: any) => void;
+      onLeaving?: (user: any) => void;
+    }
+  ) {
     if (this.isDemoMode) {
       return demoSocket.joinPresenceChannel(channelName, callbacks);
     }
@@ -228,6 +398,79 @@ class SocketService {
 
     this.disconnect();
     this.initializeEcho();
+  }
+
+  // Update auth token and reinitialize Echo
+  updateAuthToken(token: string): Promise<void> {
+    if (this.isDemoMode) return Promise.resolve();
+
+    console.log('Updating auth token:', token);
+
+    // Store the new token
+    localStorage.setItem('auth_token', token);
+
+    // Disconnect existing connection
+    if (this.echo) {
+      this.echo.disconnect();
+      this.echo = null;
+    }
+
+    // Reinitialize with new token
+    this.initializeEcho();
+
+    // Return a promise that resolves after auth headers are updated
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        try {
+          if (
+            this.echo &&
+            (this.echo as any).connector &&
+            (this.echo as any).connector.pusher
+          ) {
+            const pusher = (this.echo as any).connector.pusher;
+
+            // Try different ways to update auth headers
+            if (pusher.config && pusher.config.auth) {
+              pusher.config.auth.headers = {
+                Authorization: `Bearer ${token}`,
+              };
+              console.log('Updated auth headers with token:', token);
+            } else if (pusher.options && pusher.options.auth) {
+              pusher.options.auth.headers = {
+                Authorization: `Bearer ${token}`,
+              };
+              console.log('Updated auth headers with token:', token);
+            } else {
+              console.log(
+                'Could not find auth config to update, but token is set in localStorage'
+              );
+            }
+          }
+        } catch (error) {
+          console.error('Error updating auth headers:', error);
+          console.log('Token is set in localStorage, continuing...');
+        }
+        resolve();
+      }, 100);
+    });
+  }
+
+  // Ensure connection is established
+  ensureConnection() {
+    if (this.isDemoMode) return;
+
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      console.warn('No auth token found, cannot ensure connection');
+      return;
+    }
+
+    if (
+      !this.echo ||
+      this.echo.connector.pusher.connection.state !== 'connected'
+    ) {
+      this.initializeEcho();
+    }
   }
 }
 

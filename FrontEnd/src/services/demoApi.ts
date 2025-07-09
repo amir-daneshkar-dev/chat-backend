@@ -1,5 +1,11 @@
 import { Chat, Message, Agent, User } from '../types';
-import { demoChats, demoAgents, demoUsers, generateDemoMessage, getRandomAutoResponse } from './demoData';
+import {
+  demoChats,
+  demoAgents,
+  demoUsers,
+  generateDemoMessage,
+  getRandomAutoResponse,
+} from './demoData';
 
 class DemoApiService {
   private chats: Chat[] = [...demoChats];
@@ -7,32 +13,38 @@ class DemoApiService {
 
   // Simulate network delay
   private delay(ms: number = 500): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // Authentication
   async login(credentials: { email: string; password: string }) {
     await this.delay(800);
-    
+
     const { email, password } = credentials;
-    
+
     // Check demo credentials
-    if (email === import.meta.env.VITE_DEMO_AGENT_EMAIL && password === import.meta.env.VITE_DEMO_AGENT_PASSWORD) {
+    if (
+      email === import.meta.env.VITE_DEMO_AGENT_EMAIL &&
+      password === import.meta.env.VITE_DEMO_AGENT_PASSWORD
+    ) {
       this.currentUser = demoAgents[0];
       return {
         token: 'demo-agent-token',
-        user: this.currentUser
+        user: this.currentUser,
       };
     }
-    
-    if (email === import.meta.env.VITE_DEMO_USER_EMAIL && password === import.meta.env.VITE_DEMO_USER_PASSWORD) {
+
+    if (
+      email === import.meta.env.VITE_DEMO_USER_EMAIL &&
+      password === import.meta.env.VITE_DEMO_USER_PASSWORD
+    ) {
       this.currentUser = demoUsers[0];
       return {
         token: 'demo-user-token',
-        user: this.currentUser
+        user: this.currentUser,
       };
     }
-    
+
     throw new Error('Invalid credentials');
   }
 
@@ -44,13 +56,13 @@ class DemoApiService {
   // Chat operations
   async createChat(userData: { name: string; email: string }) {
     await this.delay(600);
-    
+
     const newUser: User = {
       id: `user-${Date.now()}`,
       name: userData.name,
       email: userData.email,
       avatar: '',
-      isOnline: true
+      isOnline: true,
     };
 
     const newChat: Chat = {
@@ -58,14 +70,15 @@ class DemoApiService {
       user: newUser,
       messages: [],
       status: 'waiting',
-      queuePosition: this.chats.filter(c => c.status === 'waiting').length + 1,
+      queuePosition:
+        this.chats.filter((c) => c.status === 'waiting').length + 1,
       createdAt: new Date(),
       updatedAt: new Date(),
-      unreadCount: 0
+      unreadCount: 0,
     };
 
     this.chats.unshift(newChat);
-    
+
     // Simulate system message
     setTimeout(() => {
       const systemMessage = generateDemoMessage(
@@ -87,26 +100,29 @@ class DemoApiService {
 
   async getChatById(chatId: string) {
     await this.delay(300);
-    const chat = this.chats.find(c => c.id === chatId);
+    const chat = this.chats.find((c) => c.id === chatId);
     if (!chat) throw new Error('Chat not found');
     return chat;
   }
 
-  async sendMessage(chatId: string, messageData: {
-    content: string;
-    type: string;
-    fileUrl?: string;
-    fileName?: string;
-    fileSize?: number;
-    voiceDuration?: number;
-  }) {
+  async sendMessage(
+    chatId: string,
+    messageData: {
+      content: string;
+      type: string;
+      fileUrl?: string;
+      fileName?: string;
+      fileSize?: number;
+      voiceDuration?: number;
+    }
+  ) {
     await this.delay(400);
-    
-    const chat = this.chats.find(c => c.id === chatId);
+
+    const chat = this.chats.find((c) => c.id === chatId);
     if (!chat) throw new Error('Chat not found');
 
     const isAgent = this.currentUser && 'status' in this.currentUser;
-    
+
     const message: Message = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       chatId,
@@ -119,7 +135,7 @@ class DemoApiService {
       fileUrl: messageData.fileUrl,
       fileName: messageData.fileName,
       fileSize: messageData.fileSize,
-      voiceDuration: messageData.voiceDuration
+      voiceDuration: messageData.voiceDuration,
     };
 
     chat.messages.push(message);
@@ -135,7 +151,7 @@ class DemoApiService {
         );
         chat.messages.push(autoResponse);
         chat.updatedAt = new Date();
-        
+
         // Assign agent if chat was waiting
         if (chat.status === 'waiting') {
           chat.status = 'active';
@@ -150,9 +166,9 @@ class DemoApiService {
 
   async markMessageAsRead(messageId: string) {
     await this.delay(200);
-    
+
     for (const chat of this.chats) {
-      const message = chat.messages.find(m => m.id === messageId);
+      const message = chat.messages.find((m) => m.id === messageId);
       if (message) {
         message.isRead = true;
         break;
@@ -163,14 +179,16 @@ class DemoApiService {
   // File operations
   async uploadFile(file: File, chatId: string) {
     await this.delay(1000 + Math.random() * 2000); // Simulate upload time
-    
+
     // Create a fake URL for demo
-    const fakeUrl = `https://demo-storage.example.com/files/${Date.now()}-${file.name}`;
-    
+    const fakeUrl = `https://demo-storage.example.com/files/${Date.now()}-${
+      file.name
+    }`;
+
     return {
       url: fakeUrl,
       fileName: file.name,
-      fileSize: file.size
+      fileSize: file.size,
     };
   }
 
@@ -182,20 +200,20 @@ class DemoApiService {
 
   async assignChatToAgent(chatId: string) {
     await this.delay(400);
-    
-    const chat = this.chats.find(c => c.id === chatId);
+
+    const chat = this.chats.find((c) => c.id === chatId);
     if (!chat) throw new Error('Chat not found');
-    
+
     chat.status = 'active';
     chat.agent = this.currentUser as Agent;
     chat.queuePosition = undefined;
-    
+
     return chat;
   }
 
   async updateAgentStatus(status: string) {
     await this.delay(300);
-    
+
     if (this.currentUser && 'status' in this.currentUser) {
       (this.currentUser as Agent).status = status as any;
     }

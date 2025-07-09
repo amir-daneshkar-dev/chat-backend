@@ -3,13 +3,11 @@ import { MessageCircle, X, Minimize2 } from 'lucide-react';
 import ChatWindow from './ChatWindow';
 
 interface ChatWidgetProps {
-  userData?: { name: string; email: string };
   position?: 'bottom-right' | 'bottom-left';
   className?: string;
 }
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({
-  userData = { name: 'Guest User', email: 'guest@example.com' },
   position = 'bottom-right',
   className = ''
 }) => {
@@ -53,7 +51,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           isOpen={isOpen}
           onClose={handleClose}
           onMinimize={handleMinimize}
-          userData={userData}
         />
       )}
 

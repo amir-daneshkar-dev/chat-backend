@@ -8,14 +8,17 @@ class DemoSocketService {
   }
 
   // Chat channels
-  joinChatChannel(chatId: string, callbacks: {
-    onMessage?: (message: any) => void;
-    onTyping?: (typing: any) => void;
-    onAgentJoined?: (agent: any) => void;
-    onAgentLeft?: (agent: any) => void;
-  }) {
+  joinChatChannel(
+    chatId: string,
+    callbacks: {
+      onMessage?: (message: any) => void;
+      onTyping?: (typing: any) => void;
+      onAgentJoined?: (agent: any) => void;
+      onAgentLeft?: (agent: any) => void;
+    }
+  ) {
     console.log(`[Demo] Joining chat channel: ${chatId}`);
-    
+
     const channel = {
       chatId,
       callbacks,
@@ -27,26 +30,28 @@ class DemoSocketService {
             callbacks.onTyping!({
               chatId,
               userId: 'agent-1',
+              userName: 'Agent Smith',
               isTyping: true,
-              timestamp: new Date()
+              timestamp: new Date(),
             });
-            
+
             setTimeout(() => {
               callbacks.onTyping!({
                 chatId,
                 userId: 'agent-1',
+                userName: 'Agent Smith',
                 isTyping: false,
-                timestamp: new Date()
+                timestamp: new Date(),
               });
             }, 2000);
           }, 3000);
         }
-      }
+      },
     };
-    
+
     this.channels.set(`chat.${chatId}`, channel);
     channel.simulateEvents();
-    
+
     return channel;
   }
 
@@ -62,7 +67,7 @@ class DemoSocketService {
     onMessage?: (message: any) => void;
   }) {
     console.log('[Demo] Joining agent channel');
-    
+
     const channel = {
       callbacks,
       // Simulate new chats occasionally
@@ -73,12 +78,12 @@ class DemoSocketService {
             // This would trigger in a real scenario
           }, 10000);
         }
-      }
+      },
     };
-    
+
     this.channels.set('agent.dashboard', channel);
     channel.simulateEvents();
-    
+
     return channel;
   }
 
@@ -88,23 +93,26 @@ class DemoSocketService {
   }
 
   // Presence channels
-  joinPresenceChannel(channelName: string, callbacks: {
-    onHere?: (users: any[]) => void;
-    onJoining?: (user: any) => void;
-    onLeaving?: (user: any) => void;
-  }) {
+  joinPresenceChannel(
+    channelName: string,
+    callbacks: {
+      onHere?: (users: any[]) => void;
+      onJoining?: (user: any) => void;
+      onLeaving?: (user: any) => void;
+    }
+  ) {
     console.log(`[Demo] Joining presence channel: ${channelName}`);
-    
+
     // Simulate some users already present
     if (callbacks.onHere) {
       setTimeout(() => {
         callbacks.onHere!([
           { id: 'agent-1', name: 'Agent Smith' },
-          { id: 'agent-2', name: 'Agent Johnson' }
+          { id: 'agent-2', name: 'Agent Johnson' },
         ]);
       }, 500);
     }
-    
+
     return { channelName, callbacks };
   }
 

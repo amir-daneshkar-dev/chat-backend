@@ -1,4 +1,5 @@
 import { User, Agent } from '../types';
+import apiService from './api';
 
 class AuthService {
   private currentUser: User | Agent | null = null;
@@ -23,13 +24,32 @@ class AuthService {
     return this.currentUser;
   }
 
+  async refreshUser(): Promise<User | Agent | null> {
+    try {
+      const user = await apiService.getCurrentUser();
+      if (user) {
+        this.setUser(user);
+        return user;
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+      this.logout();
+    }
+    return null;
+  }
+
   isAuthenticated(): boolean {
     return !!localStorage.getItem('auth_token') && !!this.getUser();
   }
 
   isAgent(): boolean {
     const user = this.getUser();
-    return user && 'status' in user;
+    return user && (user.role === 'agent' || 'status' in user);
+  }
+
+  isAdmin(): boolean {
+    const user = this.getUser();
+    return user && user.role === 'admin';
   }
 
   logout() {

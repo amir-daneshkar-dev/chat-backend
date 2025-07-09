@@ -19,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
             'agent' => AgentMiddleware::class,
         ]);
+
+        // Add CORS middleware to handle cross-origin requests
+        // $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

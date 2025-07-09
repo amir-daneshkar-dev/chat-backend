@@ -15,15 +15,6 @@ class ChatService
      */
     public function createChat(User $user): Chat
     {
-        // Check if user already has an active chat
-        $existingChat = Chat::where('user_id', $user->id)
-                           ->whereIn('status', ['waiting', 'active'])
-                           ->first();
-
-        if ($existingChat) {
-            return $existingChat;
-        }
-
         // Get queue position
         $queuePosition = Chat::waiting()->count() + 1;
 
@@ -66,8 +57,8 @@ class ChatService
     public function updateQueuePositions(): void
     {
         $waitingChats = Chat::waiting()
-                           ->orderBy('created_at')
-                           ->get();
+            ->orderBy('created_at')
+            ->get();
 
         foreach ($waitingChats as $index => $chat) {
             $chat->updateQueuePosition($index + 1);
@@ -80,15 +71,15 @@ class ChatService
     public function findAvailableAgent(): ?User
     {
         return User::whereHas('agent', function ($query) {
-                      $query->where('status', 'available');
-                  })
-                  ->with('agent')
-                  ->get()
-                  ->filter(function ($user) {
-                      return $user->agent->canAcceptNewChat();
-                  })
-                  ->sortBy('agent.active_chats')
-                  ->first();
+            $query->where('status', 'available');
+        })
+            ->with('agent')
+            ->get()
+            ->filter(function ($user) {
+                return $user->agent->canAcceptNewChat();
+            })
+            ->sortBy('agent.active_chats')
+            ->first();
     }
 
     /**
@@ -97,12 +88,12 @@ class ChatService
     public function autoAssignChats(): void
     {
         $waitingChats = Chat::waiting()
-                           ->orderBy('created_at')
-                           ->get();
+            ->orderBy('created_at')
+            ->get();
 
         foreach ($waitingChats as $chat) {
             $agent = $this->findAvailableAgent();
-            
+
             if ($agent) {
                 $this->assignChatToAgent($chat, $agent);
             } else {

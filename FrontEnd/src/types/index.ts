@@ -4,11 +4,14 @@ export interface User {
   email: string;
   avatar?: string;
   isOnline: boolean;
+  role?: 'user' | 'agent' | 'admin';
 }
 
 export interface Agent extends User {
   status: 'available' | 'busy' | 'offline';
   activeChats: number;
+  maxChats?: number;
+  role: 'agent';
 }
 
 export interface Message {
@@ -41,6 +44,7 @@ export interface Chat {
 export interface TypingStatus {
   chatId: string;
   userId: string;
+  userName?: string;
   isTyping: boolean;
   timestamp: Date;
 }

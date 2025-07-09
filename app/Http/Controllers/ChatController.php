@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Chat;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use App\Events\ChatCreated;
 use App\Events\ChatUpdated;
 use App\Services\ChatService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class ChatController extends Controller
 {
@@ -60,11 +60,41 @@ class ChatController extends Controller
 
         // If no user is authenticated, create a guest user
         if (!$user) {
-            $user = User::create([
-                'name' => $request->name ?? 'Guest User',
-                'email' => $request->email ?? 'guest@example.com',
-                'password' => Hash::make('temporary'),
-                'role' => 'user',
+            // Check if user already exists by email
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                // Create new user only if doesn't exist
+                $user = User::create([
+                    'name' => $request->name ?? 'Guest User',
+                    'email' => $request->email ?? 'guest@example.com',
+                    'password' => Hash::make('temporary'),
+                    'role' => 'user',
+                ]);
+            } else {
+                // Update user name if provided and different
+                if ($request->name && $user->name !== $request->name) {
+                    $user->update(['name' => $request->name]);
+                }
+            }
+        }
+
+        // Generate a token for guest users (expires in 1 hour)
+        $token = null;
+        if ($user->role === 'user') { // or check for guest logic
+            $token = $user->createToken('guest-token', ['*'], now()->addHour())->plainTextToken;
+        }
+
+        // Check if user already has an active or waiting chat
+        $existingChat = Chat::where('user_id', $user->id)
+            ->whereIn('status', ['waiting', 'active'])
+            ->with(['user', 'agent', 'messages', 'latestMessage'])
+            ->first();
+
+        if ($existingChat) {
+            return response()->json([
+                'chat' => $this->formatChatResponse($existingChat),
+                'token' => $token,
             ]);
         }
 
@@ -72,7 +102,10 @@ class ChatController extends Controller
 
         broadcast(new ChatCreated($chat))->toOthers();
 
-        return response()->json($this->formatChatResponse($chat), 201);
+        return response()->json([
+            'chat' => $this->formatChatResponse($chat),
+            'token' => $token,
+        ], 201);
     }
 
     /**
@@ -142,13 +175,33 @@ class ChatController extends Controller
     }
 
     /**
+     * Get chats for a user by email (for guest users).
+     */
+    public function getUserChats(Request $request, $email)
+    {
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return response()->json([]);
+        }
+
+        $chats = Chat::with(['user', 'agent', 'messages', 'latestMessage'])
+            ->where('user_id', $user->id)
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+
+        return response()->json($chats->map(function ($chat) {
+            return $this->formatChatResponse($chat);
+        }));
+    }
+    /**
      * Check if user can access the chat.
      */
     private function userCanAccessChat(User $user, Chat $chat): bool
     {
         return $user->isAgent() || $chat->user_id === $user->id;
     }
-
     /**
      * Format chat response.
      */

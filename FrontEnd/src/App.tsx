@@ -34,29 +34,10 @@ function App() {
       });
       setShowLoginModal(true);
     } else {
-      // Original mock authentication for non-demo mode
-      const mockUser = userType === 'agent' 
-        ? {
-            id: '1',
-            name: 'Agent Smith',
-            email: 'agent@example.com',
-            avatar: '',
-            isOnline: true,
-            status: 'available' as const,
-            activeChats: 0
-          }
-        : {
-            id: '2',
-            name: 'John Doe',
-            email: 'john@example.com',
-            avatar: '',
-            isOnline: true
-          };
-
-      authService.setUser(mockUser);
-      localStorage.setItem('auth_token', 'mock-token-123');
-      setIsAuthenticated(true);
-      setView(userType === 'agent' ? 'agent' : 'widget');
+      // In non-demo mode, show login modal for real authentication
+      setLoginType(userType);
+      setLoginForm({ email: '', password: '' });
+      setShowLoginModal(true);
     }
   };
 
@@ -389,10 +370,6 @@ function App() {
 
       {/* Chat Widget */}
       <ChatWidget
-        userData={{
-          name: 'Demo User',
-          email: 'demo@example.com'
-        }}
         position="bottom-right"
       />
     </div>

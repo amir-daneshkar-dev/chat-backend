@@ -8,6 +8,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\TypingController;
+use Illuminate\Support\Facades\Broadcast;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,6 +24,7 @@ use App\Http\Controllers\TypingController;
 // Public routes
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
+Route::get('/chats/user/{email}', [ChatController::class, 'getUserChats']);
 
 // Guest chat creation (no auth required)
 Route::post('/chats', [ChatController::class, 'store']);
