@@ -141,15 +141,6 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = '' }) => {
           );
         },
         onTyping: (typing: any) => {
-          console.log(
-            'Agent: Typing event received for chat:',
-            chatId,
-            'full data:',
-            typing
-          );
-          console.log('Agent: Typing event type:', typeof typing);
-          console.log('Agent: Typing event keys:', Object.keys(typing));
-
           // Clear existing timeout for this user if it exists
           const timeoutKey = `${typing.chatId}-${typing.userId}`;
           const existingTimeout = typingTimeouts.get(timeoutKey);
@@ -165,16 +156,6 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = '' }) => {
             const newStatuses = typing.isTyping
               ? [...filtered, typing]
               : filtered;
-            console.log('Agent: New typing statuses:', newStatuses);
-            console.log(
-              'Agent: Typing status update - isTyping:',
-              typing.isTyping
-            );
-            console.log(
-              'Agent: Typing status update - userName:',
-              typing.userName
-            );
-            console.log('Agent: Typing status update - userId:', typing.userId);
             return newStatuses;
           });
 

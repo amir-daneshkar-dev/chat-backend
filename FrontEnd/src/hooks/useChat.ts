@@ -77,14 +77,9 @@ export const useChat = (chatId?: string) => {
         console.log('Joining chat channel:', chat.id);
         socketService.joinChatChannel(chat.id, {
           onMessage: (message: Message) => {
-            console.log('useChat: Message received via WebSocket:', message);
             setMessages((prev) => [...prev, message]);
           },
           onTyping: (typing: TypingStatus) => {
-            console.log('useChat: Typing event received:', typing);
-            console.log('useChat: Typing event type:', typeof typing);
-            console.log('useChat: Typing event keys:', Object.keys(typing));
-
             // Validate the typing data structure
             if (!typing || typeof typing !== 'object') {
               console.error('useChat: Invalid typing data received:', typing);
@@ -102,60 +97,15 @@ export const useChat = (chatId?: string) => {
               );
               return;
             }
-
-            // Clear existing timeout for this user if it exists
-            const timeoutKey = `${typing.chatId}-${typing.userId}`;
-            const existingTimeout = typingTimeouts.get(timeoutKey);
-            if (existingTimeout) {
-              clearTimeout(existingTimeout);
-            }
-
             setTypingStatuses((prev) => {
               const filtered = prev.filter(
                 (t) => t.chatId !== typing.chatId || t.userId !== typing.userId
               );
-              const newStatuses = typing.isTyping
-                ? [...filtered, typing]
-                : filtered;
-              console.log('useChat: Updated typing statuses:', newStatuses);
-              return newStatuses;
+              return typing.isTyping ? [...filtered, typing] : filtered;
             });
-
-            // Set new timeout to clear typing status after 5 seconds
-            if (typing.isTyping) {
-              const newTimeout = setTimeout(() => {
-                console.log(
-                  'useChat: Clearing typing status for timeout:',
-                  timeoutKey
-                );
-                setTypingStatuses((prev) =>
-                  prev.filter(
-                    (t) =>
-                      t.chatId !== typing.chatId || t.userId !== typing.userId
-                  )
-                );
-                setTypingTimeouts((prev) => {
-                  const newMap = new Map(prev);
-                  newMap.delete(timeoutKey);
-                  return newMap;
-                });
-              }, 5000);
-
-              setTypingTimeouts((prev) => {
-                const newMap = new Map(prev);
-                newMap.set(timeoutKey, newTimeout);
-                return newMap;
-              });
-            } else {
-              // Remove timeout if typing stopped
-              setTypingTimeouts((prev) => {
-                const newMap = new Map(prev);
-                newMap.delete(timeoutKey);
-                return newMap;
-              });
-            }
           },
           onAgentJoined: (agent) => {
+            console.log('agent join =', agent);
             setCurrentChat((prev) => (prev ? { ...prev, agent } : null));
           },
           onAgentLeft: () => {
@@ -236,12 +186,6 @@ export const useChat = (chatId?: string) => {
   const sendTypingStatus = useCallback(
     async (isTyping: boolean) => {
       if (!currentChat) return;
-
-      console.log('useChat: Sending typing status:', {
-        isTyping,
-        chatId: currentChat.id,
-      });
-
       try {
         await apiService.sendTypingStatus(currentChat.id, isTyping);
         console.log('useChat: Typing status sent successfully');
@@ -267,9 +211,7 @@ export const useChat = (chatId?: string) => {
   }, []);
 
   // Monitor typing statuses changes
-  useEffect(() => {
-    console.log('useChat: Typing statuses changed:', typingStatuses);
-  }, [typingStatuses]);
+  useEffect(() => {}, [typingStatuses]);
 
   // Cleanup on unmount
   useEffect(() => {

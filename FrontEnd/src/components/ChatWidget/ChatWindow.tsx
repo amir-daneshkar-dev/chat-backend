@@ -58,9 +58,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   } = useChat();
 
   // Debug typing statuses
-  React.useEffect(() => {
-    console.log('ChatWindow: Typing statuses changed:', typingStatuses);
-  }, [typingStatuses]);
+  React.useEffect(() => {}, [typingStatuses]);
 
   const validateForm = (): boolean => {
     const errors: Partial<UserForm> = {};
@@ -326,41 +324,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <TypingIndicator
             isTyping={typingStatuses.some((ts) => {
               // Only show typing indicator if the agent is typing
-              const isAgentTyping =
-                ts.isTyping && ts.userId !== currentChat.user.id;
-              console.log('ChatWindow typing check:', {
-                ts,
-                chatUserId: currentChat.user.id,
-                isAgentTyping,
-                typingStatuses: typingStatuses,
-              });
-              return isAgentTyping;
+              return ts.isTyping && ts.userId !== currentChat.user.id;
             })}
             userName={currentChat.agent?.name || 'Agent'}
           />
-
-          {/* Debug Test Button */}
-          <div className='px-4 py-2 bg-gray-100 border-t'>
-            <button
-              onClick={() => {
-                console.log('=== MANUAL TYPING TEST ===');
-                sendTypingStatus(true);
-                setTimeout(() => sendTypingStatus(false), 2000);
-              }}
-              className='text-xs bg-blue-500 text-white px-2 py-1 rounded mr-2'
-            >
-              Test Typing (2s)
-            </button>
-            <button
-              onClick={() => {
-                console.log('=== MANUAL MESSAGE TEST ===');
-                handleSendMessage('Test message from user');
-              }}
-              className='text-xs bg-green-500 text-white px-2 py-1 rounded'
-            >
-              Test Message
-            </button>
-          </div>
 
           {/* Message Input */}
           <MessageInput

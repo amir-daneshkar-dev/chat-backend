@@ -30,16 +30,6 @@ class SocketService {
   private initializeEcho() {
     try {
       const token = localStorage.getItem('auth_token');
-      console.log('Initializing Echo with token:', token);
-      console.log('Environment variables:', {
-        VITE_PUSHER_APP_KEY: import.meta.env.VITE_PUSHER_APP_KEY,
-        VITE_PUSHER_HOST: import.meta.env.VITE_PUSHER_HOST,
-        VITE_PUSHER_PORT: import.meta.env.VITE_PUSHER_PORT,
-        VITE_PUSHER_SCHEME: import.meta.env.VITE_PUSHER_SCHEME,
-        VITE_PUSHER_CLUSTER: import.meta.env.VITE_PUSHER_CLUSTER,
-        VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
-      });
-
       if (!token) {
         console.warn('No auth token found, cannot initialize Echo');
         return;
@@ -76,11 +66,6 @@ class SocketService {
       console.error('Cannot setup connection handlers: Echo is null');
       return;
     }
-
-    console.log('Setting up connection handlers...');
-    console.log('Echo connector:', this.echo.connector);
-    console.log('Pusher connection:', this.echo.connector.pusher.connection);
-
     this.echo.connector.pusher.connection.bind('connecting', () => {
       console.log('WebSocket connecting...');
     });
@@ -94,16 +79,29 @@ class SocketService {
       console.log('WebSocket disconnected');
       this.handleReconnection();
     });
-
     this.echo.connector.pusher.connection.bind('error', (error: any) => {
       console.error('WebSocket error:', error);
       this.handleReconnection();
     });
 
+    this.echo.connector.pusher.connection.bind_global(
+      (message: any, data: any) => {
+        console.log(
+          '-------------------------------------------Received event:',
+          message,
+          data
+        );
+      }
+    );
+
+    // this.echo.connector.pusher.connection.bind((states: any) => {
+    //   console.log('=======Message message:', states);
+    // });
+
     this.echo.connector.pusher.connection.bind(
       'state_change',
       (states: any) => {
-        console.log('WebSocket state change:', states);
+        console.log('WeuploadFilebSocket state change:', states);
       }
     );
   }
@@ -112,7 +110,7 @@ class SocketService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       setTimeout(() => {
-        console.log(`Reconnection attempt ${this.reconnectAttempts}`);
+        console.log(`ReconuploadFilenection attempt ${this.reconnectAttempts}`);
         this.initializeEcho();
       }, 1000 * Math.pow(2, this.reconnectAttempts));
     }
@@ -136,26 +134,7 @@ class SocketService {
       console.error('Chat: Echo not initialized for chat:', chatId);
       return null;
     }
-
-    console.log(
-      'Chat: WebSocket connection state:',
-      this.echo.connector.pusher.connection.state
-    );
-    console.log(
-      'Chat: Auth token available:',
-      !!localStorage.getItem('auth_token')
-    );
-
-    console.log('Chat: Joining channel:', `chat.${chatId}`);
     const channel = this.echo.private(`chat.${chatId}`);
-
-    console.log('Chat: Channel object:', channel);
-    console.log(
-      'Chat: Channel methods:',
-      Object.getOwnPropertyNames(Object.getPrototypeOf(channel))
-    );
-    console.log('Chat: Channel properties:', Object.keys(channel));
-    console.log('Chat: Channel listeners:', (channel as any).listeners);
 
     // Add debugging for channel subscription
     channel.subscribed(() => {
@@ -170,12 +149,12 @@ class SocketService {
     });
 
     // Listen for all events on this channel for debugging
-    channel.listen('.', (event: any) => {
-      console.log('Chat: Received event on channel:', event);
-    });
+    // channel.listen('..', (event: any) => {
+    //   console.log('Chat: Received event on channel:', event);
+    // });
 
     // Also listen for the specific event name that Laravel broadcasts
-    channel.listen('UserTyping', (typing: any) => {
+    channel.listen('.UserTyping', (typing: any) => {
       console.log(
         'Chat: UserTyping event received via specific listener:',
         typing
@@ -183,13 +162,13 @@ class SocketService {
     });
 
     // Try listening without the event name (Laravel Echo might handle this differently)
-    channel.listen((event: any) => {
-      console.log('Chat: Received event via generic listener:', event);
-    });
+    // channel.listen((event: any) => {
+    //   console.log('Chat: Received event via generic listener:', event);
+    // });
 
     if (callbacks.onMessage) {
       console.log('Chat: Setting up MessageSent listener');
-      channel.listen('MessageSent', (data: any) => {
+      channel.listen('.MessageSent', (data: any) => {
         console.log('Chat: MessageSent event received - full data:', data);
         // Backend sends message data nested under 'message' key
         const message = data.message || data;
@@ -199,58 +178,42 @@ class SocketService {
     }
 
     if (callbacks.onTyping) {
-      console.log('Chat: Setting up UserTyping listener');
-      console.log('Chat: Listening for event name: UserTyping');
-      console.log('Chat: Laravel broadcasts with broadcastAs: UserTyping');
-
       // Try different event name patterns
-      channel.listen('UserTyping', (typing: any) => {
-        console.log('=== SOCKET: UserTyping event received (exact match) ===');
-        console.log('Chat: UserTyping event received - full data:', typing);
-        console.log('Chat: UserTyping event type:', typeof typing);
-        console.log('Chat: UserTyping event keys:', Object.keys(typing));
-        console.log(
-          'Chat: UserTyping event stringified:',
-          JSON.stringify(typing, null, 2)
-        );
-
-        // The backend sends the data directly via broadcastWith()
-        // No need for complex JSON parsing
+      channel.listen('.UserTyping', (typing: any) => {
         const typingData = typing;
 
-        console.log('Chat: Final processed typing data:', typingData);
-        console.log('Chat: Calling onTyping callback with data:', typingData);
         callbacks.onTyping!(typingData);
       });
 
       // Try with namespace prefix
-      channel.listen('App\\Events\\UserTyping', (typing: any) => {
-        console.log(
-          '=== SOCKET: UserTyping event received (with namespace) ==='
-        );
-        console.log('Chat: UserTyping event received - full data:', typing);
-        callbacks.onTyping!(typing);
-      });
+      // channel.listen('.App\\Events\\UserTyping', (typing: any) => {
+      //   console.log(
+      //     '=== SOCKET: UserTyping event received (with namespace) ==='
+      //   );
+      //   console.log('Chat: UserTyping event received - full data:', typing);
+      //   callbacks.onTyping!(typing);
+      // });
 
       // Try without broadcastAs (using class name)
-      channel.listen('user-typing', (typing: any) => {
-        console.log('=== SOCKET: UserTyping event received (kebab-case) ===');
-        console.log('Chat: UserTyping event received - full data:', typing);
-        callbacks.onTyping!(typing);
-      });
+      // channel.listen('.user-typing', (typing: any) => {
+      //   console.log('=== SOCKET: UserTyping event received (kebab-case) ===');
+      //   console.log('Chat: UserTyping event received - full data:', typing);
+      //   callbacks.onTyping!(typing);
+      // });
     }
 
     if (callbacks.onAgentJoined) {
-      channel.listen('AgentJoined', (data: any) => {
-        console.log('Chat: AgentJoined event received:', data);
-        // Backend sends agent data nested under 'agent' key
+      // channel.subscription.bind('AgentJoined', (eventName: any, data: any) => {
+      //   console.log('mostafa: AgentJoined event received:', eventName, data);
+      // });
+      channel.listen('.AgentJoined', (data: any) => {
         const agent = data.agent || data;
         callbacks.onAgentJoined!(agent);
       });
     }
 
     if (callbacks.onAgentLeft) {
-      channel.listen('AgentLeft', (data: any) => {
+      channel.listen('.AgentLeft', (data: any) => {
         console.log('Chat: AgentLeft event received:', data);
         // Backend sends agent data nested under 'agent' key
         const agent = data.agent || data;
@@ -290,7 +253,7 @@ class SocketService {
     const channel = this.echo.private('agent.dashboard');
 
     if (callbacks.onNewChat) {
-      channel.listen('NewChatAssigned', (data: any) => {
+      channel.listen('.NewChatAssigned', (data: any) => {
         console.log('Agent: NewChatAssigned event received:', data);
         // Backend sends chat data nested under 'chat' key
         const chat = data.chat || data;
@@ -299,7 +262,7 @@ class SocketService {
     }
 
     if (callbacks.onChatUpdate) {
-      channel.listen('ChatUpdated', (data: any) => {
+      channel.listen('.ChatUpdated', (data: any) => {
         console.log('Agent: ChatUpdated event received:', data);
         // Backend sends chat data nested under 'chat' key
         const chat = data.chat || data;
@@ -308,7 +271,7 @@ class SocketService {
     }
 
     if (callbacks.onMessage) {
-      channel.listen('MessageSent', (data: any) => {
+      channel.listen('.MessageSent', (data: any) => {
         console.log('Agent: MessageSent event received - full data:', data);
         // Backend sends message data nested under 'message' key
         const message = data.message || data;
