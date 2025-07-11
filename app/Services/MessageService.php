@@ -37,12 +37,12 @@ class MessageService
     public function markMessagesAsRead(Chat $chat, User $user): int
     {
         return Message::where('chat_id', $chat->id)
-                     ->where('user_id', '!=', $user->id) // Don't mark own messages as read
-                     ->where('is_read', false)
-                     ->update([
-                         'is_read' => true,
-                         'read_at' => now(),
-                     ]);
+            ->where('user_id', '!=', $user->id) // Don't mark own messages as read
+            ->where('is_read', false)
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
     }
 
     /**
@@ -51,9 +51,9 @@ class MessageService
     public function getUnreadCount(Chat $chat, User $user): int
     {
         return Message::where('chat_id', $chat->id)
-                     ->where('user_id', '!=', $user->id)
-                     ->where('is_read', false)
-                     ->count();
+            ->where('user_id', '!=', $user->id)
+            ->where('is_read', false)
+            ->count();
     }
 
     /**
@@ -62,9 +62,9 @@ class MessageService
     public function getMessages(Chat $chat, int $page = 1, int $perPage = 50): array
     {
         $messages = Message::with('user')
-                          ->where('chat_id', $chat->id)
-                          ->orderBy('created_at', 'desc')
-                          ->paginate($perPage, ['*'], 'page', $page);
+            ->where('chat_id', $chat->id)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
 
         return [
             'messages' => $messages->items(),

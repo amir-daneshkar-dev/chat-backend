@@ -61,10 +61,10 @@ class MessageSent implements ShouldBroadcast
                 'timestamp' => $this->message->created_at,
                 'isRead' => $this->message->is_read,
                 'isAgent' => $this->message->is_agent,
-                'fileUrl' => $this->message->file_url,
-                'fileName' => $this->message->file_name,
-                'fileSize' => $this->message->file_size,
-                'voiceDuration' => $this->message->voice_duration,
+                'file_url' => $this->message->file_url,
+                'file_name' => $this->message->file_name,
+                'file_size' => $this->message->file_size,
+                'voice_duration' => $this->message->voice_duration,
             ],
         ];
     }

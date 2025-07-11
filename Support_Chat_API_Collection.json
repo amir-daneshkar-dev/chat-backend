@@ -27,7 +27,7 @@
             "type": "string"
         },
         {
-            "key": "filename",
+            "key": "file_name",
             "value": "",
             "type": "string"
         }
@@ -475,7 +475,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"path\": \"chat-files/chat-uuid/filename.ext\"\n}"
+                            "raw": "{\n  \"path\": \"chat-files/chat-uuid/file_name.ext\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/files",
@@ -498,9 +498,9 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/files/{{filename}}/info",
+                            "raw": "{{base_url}}/api/files/{{file_name}}/info",
                             "host": ["{{base_url}}"],
-                            "path": ["api", "files", "{{filename}}", "info"]
+                            "path": ["api", "files", "{{file_name}}", "info"]
                         },
                         "description": "Get information about a specific file."
                     },

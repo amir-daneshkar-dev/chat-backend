@@ -49,7 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // File uploads
     Route::post('/files/upload', [FileController::class, 'upload']);
     Route::delete('/files', [FileController::class, 'delete']);
-    Route::get('/files/{filename}/info', [FileController::class, 'info']);
+    Route::get('/files/{file_name}/info', [FileController::class, 'info']);
 
     // Typing indicators
     Route::post('/chats/{chatId}/typing', [TypingController::class, 'updateTypingStatus']);

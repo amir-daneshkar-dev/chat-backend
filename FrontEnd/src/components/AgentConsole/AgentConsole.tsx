@@ -264,9 +264,9 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = '' }) => {
         const messageData = {
           content: file.name,
           type: file.type.startsWith('image/') ? 'image' : 'file',
-          fileUrl: uploadResult.url,
-          fileName: file.name,
-          fileSize: file.size,
+          file_url: uploadResult.url,
+          file_name: file.name,
+          file_size: file.size,
         };
 
         const message = await apiService.sendMessage(
@@ -301,8 +301,8 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = '' }) => {
         const messageData = {
           content: 'Voice message',
           type: 'voice',
-          fileUrl: uploadResult.url,
-          voiceDuration: duration,
+          file_url: uploadResult.url,
+          voice_duration: duration,
         };
 
         const message = await apiService.sendMessage(

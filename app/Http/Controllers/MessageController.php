@@ -85,9 +85,9 @@ class MessageController extends Controller
         }
 
         $messages = Message::with('user')
-                          ->where('chat_id', $chat->id)
-                          ->orderBy('created_at')
-                          ->paginate(50);
+            ->where('chat_id', $chat->id)
+            ->orderBy('created_at')
+            ->paginate(50);
 
         return response()->json([
             'data' => $messages->items(),
@@ -122,10 +122,10 @@ class MessageController extends Controller
             'timestamp' => $message->created_at,
             'isRead' => $message->is_read,
             'isAgent' => $message->is_agent,
-            'fileUrl' => $message->file_url,
-            'fileName' => $message->file_name,
-            'fileSize' => $message->file_size,
-            'voiceDuration' => $message->voice_duration,
+            'file_url' => $message->file_url,
+            'file_name' => $message->file_name,
+            'file_size' => $message->file_size,
+            'voice_duration' => $message->voice_duration,
         ];
     }
 }

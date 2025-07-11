@@ -58,7 +58,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   } = useChat();
 
   // Debug typing statuses
-  React.useEffect(() => {}, [typingStatuses]);
+  React.useEffect(() => {
+    console.log('amir: Typing statuses:', typingStatuses);
+  }, [typingStatuses]);
 
   const validateForm = (): boolean => {
     const errors: Partial<UserForm> = {};
@@ -128,8 +130,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       await sendMessage({
         content: 'Voice message',
         type: 'voice',
-        fileUrl: uploadResult?.fileUrl,
-        voiceDuration: duration,
+        file_url: uploadResult?.file_url,
+        voice_duration: duration,
       });
     } catch (error) {
       console.error('Failed to send voice message:', error);

@@ -267,10 +267,10 @@ class ApiService {
     messageData: {
       content: string;
       type: string;
-      fileUrl?: string;
-      fileName?: string;
-      fileSize?: number;
-      voiceDuration?: number;
+      file_url?: string;
+      file_name?: string;
+      file_size?: number;
+      voice_duration?: number;
     }
   ) {
     if (this.isDemoMode) {
@@ -285,10 +285,10 @@ class ApiService {
         userId: currentUser.id || 'demo-user',
         content: messageData.content,
         type: messageData.type,
-        fileUrl: messageData.fileUrl,
-        fileName: messageData.fileName,
-        fileSize: messageData.fileSize,
-        voiceDuration: messageData.voiceDuration,
+        file_url: messageData.file_url,
+        file_name: messageData.file_name,
+        file_size: messageData.file_size,
+        voice_duration: messageData.voice_duration,
         isRead: false,
         isAgent,
       });
@@ -364,8 +364,8 @@ class ApiService {
         setTimeout(() => {
           resolve({
             url: fakeUrl,
-            fileName: file.name,
-            fileSize: file.size,
+            file_name: file.name,
+            file_size: file.size,
             success: true,
           });
         }, 1000 + Math.random() * 2000); // Simulate upload time

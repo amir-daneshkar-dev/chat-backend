@@ -98,6 +98,8 @@ export const useChat = (chatId?: string) => {
               return;
             }
             setTypingStatuses((prev) => {
+              console.log('mostafa: Typing status received:', typing);
+
               const filtered = prev.filter(
                 (t) => t.chatId !== typing.chatId || t.userId !== typing.userId
               );
@@ -135,10 +137,10 @@ export const useChat = (chatId?: string) => {
     async (messageData: {
       content: string;
       type: string;
-      fileUrl?: string;
-      fileName?: string;
-      fileSize?: number;
-      voiceDuration?: number;
+      file_url?: string;
+      file_name?: string;
+      file_size?: number;
+      voice_duration?: number;
     }) => {
       if (!currentChat) return;
 
@@ -168,9 +170,9 @@ export const useChat = (chatId?: string) => {
         const messageData = {
           content: file.name,
           type: file.type.startsWith('image/') ? 'image' : 'file',
-          fileUrl: uploadResult.url,
-          fileName: file.name,
-          fileSize: file.size,
+          file_url: uploadResult.url,
+          file_name: file.name,
+          file_size: file.size,
         };
 
         return await sendMessage(messageData);

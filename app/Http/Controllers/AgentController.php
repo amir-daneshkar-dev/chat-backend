@@ -22,21 +22,21 @@ class AgentController extends Controller
     public function getChats(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$user->isAgent()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         // Get all chats (assigned to agent + waiting)
         $chats = Chat::with(['user', 'agent', 'messages', 'latestMessage'])
-                    ->where(function ($query) use ($user) {
-                        $query->where('agent_id', $user->id)
-                              ->orWhere('status', 'waiting');
-                    })
-                    ->orderByRaw("CASE WHEN status = 'waiting' THEN 1 WHEN status = 'active' THEN 2 ELSE 3 END")
-                    ->orderBy('queue_position')
-                    ->orderBy('updated_at', 'desc')
-                    ->get();
+            ->where(function ($query) use ($user) {
+                $query->where('agent_id', $user->id)
+                    ->orWhere('status', 'waiting');
+            })
+            ->orderByRaw("CASE WHEN status = 'waiting' THEN 1 WHEN status = 'active' THEN 2 ELSE 3 END")
+            ->orderBy('queue_position')
+            ->orderBy('updated_at', 'desc')
+            ->get();
 
         return response()->json($chats->map(function ($chat) {
             return $this->formatChatResponse($chat);
@@ -49,7 +49,7 @@ class AgentController extends Controller
     public function assignChat(Request $request, $chatId)
     {
         $user = $request->user();
-        
+
         if (!$user->isAgent()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -80,7 +80,7 @@ class AgentController extends Controller
         ]);
 
         $user = $request->user();
-        
+
         if (!$user->isAgent()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -99,21 +99,21 @@ class AgentController extends Controller
     public function getStats(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$user->isAgent()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $stats = [
             'activeChats' => Chat::where('agent_id', $user->id)
-                                ->where('status', 'active')
-                                ->count(),
+                ->where('status', 'active')
+                ->count(),
             'totalChats' => Chat::where('agent_id', $user->id)->count(),
             'waitingChats' => Chat::where('status', 'waiting')->count(),
             'closedToday' => Chat::where('agent_id', $user->id)
-                               ->where('status', 'closed')
-                               ->whereDate('ended_at', today())
-                               ->count(),
+                ->where('status', 'closed')
+                ->whereDate('ended_at', today())
+                ->count(),
         ];
 
         return response()->json($stats);
@@ -125,7 +125,7 @@ class AgentController extends Controller
     public function closeChat(Request $request, $chatId)
     {
         $user = $request->user();
-        
+
         if (!$user->isAgent()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -176,10 +176,10 @@ class AgentController extends Controller
                     'timestamp' => $message->created_at,
                     'isRead' => $message->is_read,
                     'isAgent' => $message->is_agent,
-                    'fileUrl' => $message->file_url,
-                    'fileName' => $message->file_name,
-                    'fileSize' => $message->file_size,
-                    'voiceDuration' => $message->voice_duration,
+                    'file_url' => $message->file_url,
+                    'file_name' => $message->file_name,
+                    'file_size' => $message->file_size,
+                    'voice_duration' => $message->voice_duration,
                 ];
             }),
             'status' => $chat->status,
