@@ -10,6 +10,7 @@ import {
     CheckCheck,
 } from "lucide-react";
 import { Message } from "../../types";
+import VoiceMessage from "./VoiceMessage";
 
 interface MessageListProps {
     messages: Message[];
@@ -34,6 +35,8 @@ const MessageList: React.FC<MessageListProps> = ({
 
     const renderMessage = (message: Message) => {
         const isAgent = message.isAgent;
+
+        console.log("messagelist", message);
 
         return (
             <div
@@ -92,19 +95,7 @@ const MessageList: React.FC<MessageListProps> = ({
                     )}
 
                     {message.type === "voice" && (
-                        <div className="flex items-center space-x-2">
-                            <button className="p-1 hover:bg-black/10 rounded">
-                                <Play className="h-4 w-4" />
-                            </button>
-                            <div className="flex-1">
-                                <div className="h-2 bg-black/20 rounded-full">
-                                    <div className="h-2 bg-white rounded-full w-0"></div>
-                                </div>
-                                <p className="text-xs opacity-75 mt-1">
-                                    {message.voice_duration}s
-                                </p>
-                            </div>
-                        </div>
+                        <VoiceMessage message={message} />
                     )}
 
                     {message.type === "system" && (

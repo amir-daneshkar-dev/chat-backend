@@ -196,22 +196,6 @@ class SocketService {
 
                 callbacks.onTyping!(typingData);
             });
-
-            // Try with namespace prefix
-            // channel.listen('.App\\Events\\UserTyping', (typing: any) => {
-            //   console.log(
-            //     '=== SOCKET: UserTyping event received (with namespace) ==='
-            //   );
-            //   console.log('Chat: UserTyping event received - full data:', typing);
-            //   callbacks.onTyping!(typing);
-            // });
-
-            // Try without broadcastAs (using class name)
-            // channel.listen('.user-typing', (typing: any) => {
-            //   console.log('=== SOCKET: UserTyping event received (kebab-case) ===');
-            //   console.log('Chat: UserTyping event received - full data:', typing);
-            //   callbacks.onTyping!(typing);
-            // });
         }
 
         if (callbacks.onAgentJoined) {

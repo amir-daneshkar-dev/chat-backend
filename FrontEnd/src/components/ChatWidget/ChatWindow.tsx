@@ -124,15 +124,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       const file = new File([audioBlob], 'voice-message.webm', {
         type: 'audio/webm',
       });
-      const uploadResult = await uploadFile(file);
+      const uploadResult = await uploadFile(file, 'voice');
 
       // Send voice message
-      await sendMessage({
-        content: 'Voice message',
-        type: 'voice',
-        file_url: uploadResult?.file_url,
-        voice_duration: duration,
-      });
+      // await sendMessage({
+      //   content: 'Voice message',
+      //   type: 'voice',
+      //   file_url: uploadResult?.file_url,
+      //   voice_duration: duration,
+      // });
     } catch (error) {
       console.error('Failed to send voice message:', error);
     }

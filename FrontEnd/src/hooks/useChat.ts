@@ -161,19 +161,40 @@ export const useChat = (chatId?: string) => {
 
   // Upload file
   const uploadFile = useCallback(
-    async (file: File) => {
+    async (file: File, type?: any) => {
       if (!currentChat) return;
 
       try {
         const uploadResult = await apiService.uploadFile(file, currentChat.id);
-
-        const messageData = {
-          content: file.name,
-          type: file.type.startsWith('image/') ? 'image' : 'file',
-          file_url: uploadResult.url,
-          file_name: file.name,
-          file_size: file.size,
+        let messageData: {
+          content: string;
+          type: string;
+          file_url?: string;
+          file_name?: string;
+          file_size?: number;
+          voice_duration?: number;
         };
+        if (type === 'voice') {
+          const audio = document.createElement('audio');
+          audio.src = URL.createObjectURL(file);
+          console.log('audio', audio);
+          messageData = {
+            content: 'Voice message',
+            type: 'voice',
+            file_url: uploadResult.url,
+            file_name: file.name,
+            file_size: file.size,
+            voice_duration: 0,
+          };
+        } else {
+          messageData = {
+            content: file.name,
+            type: file.type.startsWith('image/') ? 'image' : 'file',
+            file_url: uploadResult.url,
+            file_name: file.name,
+            file_size: file.size,
+          };
+        }
 
         return await sendMessage(messageData);
       } catch (error) {
