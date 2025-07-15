@@ -138,7 +138,45 @@ class SocketService {
             console.error("Chat: Echo not initialized for chat:", chatId);
             return null;
         }
-        const channel = this.echo.private(`chat.${chatId}`);
+
+        // Ensure connection is established before joining channel
+        if (this.echo.connector.pusher.connection.state !== "connected") {
+            console.log(
+                "Chat: Waiting for connection before joining channel:",
+                chatId
+            );
+            return new Promise((resolve) => {
+                const checkConnection = () => {
+                    if (
+                        this.echo?.connector.pusher.connection.state ===
+                        "connected"
+                    ) {
+                        console.log(
+                            "Chat: Connection established, joining channel:",
+                            chatId
+                        );
+                        resolve(this.setupChatChannel(chatId, callbacks));
+                    } else {
+                        setTimeout(checkConnection, 100);
+                    }
+                };
+                checkConnection();
+            });
+        }
+
+        return this.setupChatChannel(chatId, callbacks);
+    }
+
+    private setupChatChannel(
+        chatId: string,
+        callbacks: {
+            onMessage?: (message: any) => void;
+            onTyping?: (typing: any) => void;
+            onAgentJoined?: (agent: any) => void;
+            onAgentLeft?: (agent: any) => void;
+        }
+    ) {
+        const channel = this.echo!.private(`chat.${chatId}`);
 
         // Add debugging for channel subscription
         channel.subscribed(() => {
@@ -150,19 +188,71 @@ class SocketService {
 
         channel.error((error: any) => {
             console.error("Chat: Channel subscription error:", error);
+            // Try to reconnect if subscription fails
+            if (error.status === 403) {
+                console.log(
+                    "Chat: Authorization failed, trying to reconnect..."
+                );
+                this.reconnect();
+            }
         });
 
         // Listen for all events on this channel for debugging
-        // channel.listen('..', (event: any) => {
-        //   console.log('Chat: Received event on channel:', event);
-        // });
+        channel.listen(".", (event: any) => {
+            console.log("Chat: Received event on channel:", event);
+        });
+
+        // Also try listening for all events without any prefix
+        channel.listen("*", (event: any) => {
+            console.log("Chat: Received wildcard event on channel:", event);
+        });
 
         // Also listen for the specific event name that Laravel broadcasts
         channel.listen(".UserTyping", (typing: any) => {
             console.log(
-                "ali: UserTyping event received via specific listener:",
+                "Chat: UserTyping event received via specific listener:",
                 typing
             );
+        });
+
+        // Add a comprehensive event listener that logs all events
+        channel.listen("*", (eventName: string, data: any) => {
+            console.log(
+                `Chat: Comprehensive listener caught event "${eventName}":`,
+                data
+            );
+
+            // Handle events based on their name
+            if (eventName === "MessageSent" || eventName === ".MessageSent") {
+                console.log(
+                    "Chat: MessageSent event caught by comprehensive listener"
+                );
+                if (callbacks.onMessage) {
+                    const message = data.message || data;
+                    callbacks.onMessage(message);
+                }
+            } else if (
+                eventName === "UserTyping" ||
+                eventName === ".UserTyping"
+            ) {
+                console.log(
+                    "Chat: UserTyping event caught by comprehensive listener"
+                );
+                if (callbacks.onTyping) {
+                    callbacks.onTyping(data);
+                }
+            } else if (
+                eventName === "AgentJoined" ||
+                eventName === ".AgentJoined"
+            ) {
+                console.log(
+                    "Chat: AgentJoined event caught by comprehensive listener"
+                );
+                if (callbacks.onAgentJoined) {
+                    const agent = data.agent || data;
+                    callbacks.onAgentJoined(agent);
+                }
+            }
         });
 
         // Try listening without the event name (Laravel Echo might handle this differently)
@@ -172,7 +262,8 @@ class SocketService {
 
         if (callbacks.onMessage) {
             console.log("Chat: Setting up MessageSent listener");
-            channel.listen(".MessageSent", (data: any) => {
+            // Try multiple event name patterns
+            channel.listen("MessageSent", (data: any) => {
                 console.log(
                     "Chat: MessageSent event received - full data:",
                     data
@@ -182,27 +273,52 @@ class SocketService {
                 console.log("Chat: Extracted message:", message);
                 callbacks.onMessage!(message);
             });
+
+            // Also try with dot prefix
+            channel.listen(".MessageSent", (data: any) => {
+                console.log(
+                    "Chat: .MessageSent event received - full data:",
+                    data
+                );
+                const message = data.message || data;
+                console.log("Chat: Extracted message:", message);
+                callbacks.onMessage!(message);
+            });
         }
 
         if (callbacks.onTyping) {
-            // Try different event name patterns
-            channel.listen(".UserTyping", (typing: any) => {
+            console.log("Chat: Setting up UserTyping listener");
+            // Try multiple event name patterns
+            channel.listen("UserTyping", (typing: any) => {
                 console.log(
-                    "ashkan: UserTyping event received - full data:",
+                    "Chat: UserTyping event received - full data:",
                     typing
                 );
+                callbacks.onTyping!(typing);
+            });
 
-                const typingData = typing;
-
-                callbacks.onTyping!(typingData);
+            // Also try with dot prefix
+            channel.listen(".UserTyping", (typing: any) => {
+                console.log(
+                    "Chat: .UserTyping event received - full data:",
+                    typing
+                );
+                callbacks.onTyping!(typing);
             });
         }
 
         if (callbacks.onAgentJoined) {
-            // channel.subscription.bind('AgentJoined', (eventName: any, data: any) => {
-            //   console.log('mostafa: AgentJoined event received:', eventName, data);
-            // });
+            console.log("Chat: Setting up AgentJoined listener");
+            // Try multiple event name patterns
+            channel.listen("AgentJoined", (data: any) => {
+                console.log("Chat: AgentJoined event received:", data);
+                const agent = data.agent || data;
+                callbacks.onAgentJoined!(agent);
+            });
+
+            // Also try with dot prefix
             channel.listen(".AgentJoined", (data: any) => {
+                console.log("Chat: .AgentJoined event received:", data);
                 const agent = data.agent || data;
                 callbacks.onAgentJoined!(agent);
             });
@@ -380,46 +496,31 @@ class SocketService {
         // Reinitialize with new token
         this.initializeEcho();
 
-        // Return a promise that resolves after auth headers are updated
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                try {
-                    if (
-                        this.echo &&
-                        (this.echo as any).connector &&
-                        (this.echo as any).connector.pusher
-                    ) {
-                        const pusher = (this.echo as any).connector.pusher;
+        // Return a promise that resolves when connection is established
+        return new Promise((resolve, reject) => {
+            const maxAttempts = 10;
+            let attempts = 0;
 
-                        // Try different ways to update auth headers
-                        if (pusher.config && pusher.config.auth) {
-                            pusher.config.auth.headers = {
-                                Authorization: `Bearer ${token}`,
-                            };
-                            console.log(
-                                "Updated auth headers with token:",
-                                token
-                            );
-                        } else if (pusher.options && pusher.options.auth) {
-                            pusher.options.auth.headers = {
-                                Authorization: `Bearer ${token}`,
-                            };
-                            console.log(
-                                "Updated auth headers with token:",
-                                token
-                            );
-                        } else {
-                            console.log(
-                                "Could not find auth config to update, but token is set in localStorage"
-                            );
-                        }
-                    }
-                } catch (error) {
-                    console.error("Error updating auth headers:", error);
-                    console.log("Token is set in localStorage, continuing...");
+            const checkConnection = () => {
+                attempts++;
+
+                if (
+                    this.echo &&
+                    this.echo.connector.pusher.connection.state === "connected"
+                ) {
+                    console.log("Socket connection established with new token");
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    console.error(
+                        "Failed to establish connection with new token"
+                    );
+                    reject(new Error("Connection timeout"));
+                } else {
+                    setTimeout(checkConnection, 500);
                 }
-                resolve();
-            }, 100);
+            };
+
+            checkConnection();
         });
     }
 

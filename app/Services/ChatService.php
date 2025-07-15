@@ -9,6 +9,7 @@ use App\Events\ChatCreated;
 use App\Events\NewChatNotification;
 use App\Events\AgentJoined;
 use App\Events\ChatUpdated;
+use App\Events\MessageSent;
 
 class ChatService
 {
@@ -27,7 +28,10 @@ class ChatService
         ]);
 
         // Create welcome message
-        $this->createSystemMessage($chat, 'Welcome to support! You are #' . $queuePosition . ' in the queue.');
+        $welcomeMessage = $this->createSystemMessage($chat, 'Welcome to support! You are #' . $queuePosition . ' in the queue.');
+
+        // Broadcast the welcome message
+        broadcast(new MessageSent($welcomeMessage))->toOthers();
 
         // Broadcast notification to agents
         broadcast(new NewChatNotification($chat))->toOthers();
@@ -50,7 +54,10 @@ class ChatService
         $this->updateQueuePositions();
 
         // Create system message
-        $this->createSystemMessage($chat, $agent->name . ' has joined the chat');
+        $joinMessage = $this->createSystemMessage($chat, $agent->name . ' has joined the chat');
+
+        // Broadcast the join message
+        broadcast(new MessageSent($joinMessage))->toOthers();
 
         // Broadcast agent joined event
         broadcast(new AgentJoined($chat, $agent))->toOthers();
