@@ -6,7 +6,9 @@ use App\Models\Chat;
 use App\Models\User;
 use App\Models\Message;
 use App\Events\ChatCreated;
+use App\Events\NewChatNotification;
 use App\Events\AgentJoined;
+use App\Events\ChatUpdated;
 
 class ChatService
 {
@@ -26,6 +28,9 @@ class ChatService
 
         // Create welcome message
         $this->createSystemMessage($chat, 'Welcome to support! You are #' . $queuePosition . ' in the queue.');
+
+        // Broadcast notification to agents
+        broadcast(new NewChatNotification($chat))->toOthers();
 
         return $chat;
     }
@@ -49,6 +54,9 @@ class ChatService
 
         // Broadcast agent joined event
         broadcast(new AgentJoined($chat, $agent))->toOthers();
+
+        // Broadcast chat updated event to notify other agents
+        broadcast(new ChatUpdated($chat))->toOthers();
     }
 
     /**

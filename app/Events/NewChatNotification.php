@@ -11,62 +11,43 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class ChatUpdated implements ShouldBroadcast
+class NewChatNotification implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $chat;
 
-    /**
-     * Create a new event instance.
-     */
-    public function __construct(Chat $chat)
-    {
-        $this->chat = $chat;
-    }
+    public function __construct(public Chat $chat) {}
 
-    /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
-     */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('chat.' . $this->chat->uuid),
             new PrivateChannel('agent.dashboard'),
         ];
     }
 
-    /**
-     * The event's broadcast name.
-     */
     public function broadcastAs(): string
     {
-        return 'ChatUpdated';
+        return 'NewChatNotification';
     }
 
-    /**
-     * Get the data to broadcast.
-     */
     public function broadcastWith(): array
     {
         return [
-            'chat' => [
+            'notification' => [
                 'id' => $this->chat->uuid,
+                'title' => 'New Chat Request',
+                'message' => 'A new chat has been created and is waiting for an agent',
+                'userName' => $this->chat->user->name,
+                'chatId' => $this->chat->uuid,
+                'timestamp' => now(),
                 'user' => [
                     'id' => $this->chat->user->id,
                     'name' => $this->chat->user->name,
                     'email' => $this->chat->user->email,
                 ],
                 'status' => $this->chat->status,
-                'agent' => $this->chat->agent ? [
-                    'id' => $this->chat->agent->id,
-                    'name' => $this->chat->agent->name,
-                ] : null,
                 'queuePosition' => $this->chat->queue_position,
                 'createdAt' => $this->chat->created_at,
-                'updatedAt' => $this->chat->updated_at,
             ],
         ];
     }

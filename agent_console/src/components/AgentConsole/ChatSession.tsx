@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { User, Clock, Phone, Mail, ExternalLink } from "lucide-react";
+import { User, Clock, Mail, X } from "lucide-react";
 import MessageList from "../shared/MessageList";
 import AgentMessageInput from "./AgentMessageInput";
 import TypingIndicator from "../shared/TypingIndicator";
@@ -12,6 +12,7 @@ interface ChatSessionProps {
     onVoiceMessage: (audioBlob: Blob, duration: number) => void;
     onTyping: (isTyping: boolean) => void;
     onMarkAsRead: (messageId: string) => void;
+    onCloseChat: (chatId: string) => void;
     typingStatuses: any[];
 }
 
@@ -22,8 +23,17 @@ const ChatSession: React.FC<ChatSessionProps> = ({
     onVoiceMessage,
     onTyping,
     onMarkAsRead,
+    onCloseChat,
     typingStatuses,
 }) => {
+    const messageListRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to top when chat changes (not when layout changes)
+    useEffect(() => {
+        if (messageListRef.current) {
+            messageListRef.current.scrollTop = 0;
+        }
+    }, [chat.id]);
     const formatTime = (date: Date) => {
         return new Date(date).toLocaleString();
     };
@@ -46,12 +56,14 @@ const ChatSession: React.FC<ChatSessionProps> = ({
                         </div>
                         <div>
                             <h2 className="text-lg font-semibold text-gray-900">
-                                {chat.user.name}
+                                {chat.user?.name || "Unknown User"}
                             </h2>
                             <div className="flex items-center space-x-4 text-sm text-gray-500">
                                 <div className="flex items-center space-x-1">
                                     <Mail className="h-4 w-4" />
-                                    <span>{chat.user.email}</span>
+                                    <span>
+                                        {chat.user?.email || "No email"}
+                                    </span>
                                 </div>
                                 <div className="flex items-center space-x-1">
                                     <Clock className="h-4 w-4" />
@@ -82,52 +94,70 @@ const ChatSession: React.FC<ChatSessionProps> = ({
                         </div>
 
                         <div className="flex items-center space-x-2">
-                            <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors">
-                                <Phone className="h-4 w-4" />
-                            </button>
-                            <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors">
-                                <ExternalLink className="h-4 w-4" />
-                            </button>
+                            {chat.status !== "closed" && (
+                                <button
+                                    onClick={() => onCloseChat(chat.id)}
+                                    className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                    title="Close chat"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Messages */}
-            <MessageList
-                messages={chat.messages}
-                onMarkAsRead={onMarkAsRead}
-                className="flex-1 bg-gray-50"
-            />
+            <div ref={messageListRef} className="flex-1 overflow-y-auto">
+                <MessageList
+                    messages={chat.messages}
+                    onMarkAsRead={onMarkAsRead}
+                    className="bg-gray-50"
+                />
+            </div>
 
             {/* Typing Indicator */}
             <TypingIndicator
                 isTyping={typingStatuses.some((ts) => {
                     // Only show typing indicator if the user (not agent) is typing
                     const isUserTyping =
-                        ts.isTyping && ts.userId === chat.user.id;
+                        ts.isTyping && ts.userId === chat.user?.id;
 
                     // For debugging
                     console.log("Agent ChatSession typing check:", {
                         ts,
-                        chatUserId: chat.user.id,
+                        chatUserId: chat.user?.id,
                         isUserTyping,
                         typingStatuses: typingStatuses,
                     });
 
                     return isUserTyping;
                 })}
-                userName={chat.user.name}
+                userName={chat.user?.name || "User"}
             />
 
             {/* Message Input */}
-            <AgentMessageInput
-                onSendMessage={onSendMessage}
-                onFileUpload={onFileUpload}
-                onVoiceMessage={onVoiceMessage}
-                onTyping={onTyping}
-                placeholder="Type your response..."
-            />
+            {chat.status !== "closed" && (
+                <AgentMessageInput
+                    onSendMessage={onSendMessage}
+                    onFileUpload={onFileUpload}
+                    onVoiceMessage={onVoiceMessage}
+                    onTyping={onTyping}
+                    onCloseChat={() => onCloseChat(chat.id)}
+                    placeholder="Type your response..."
+                />
+            )}
+
+            {/* Closed Chat Message */}
+            {chat.status === "closed" && (
+                <div className="bg-gray-100 border-t px-6 py-4">
+                    <div className="text-center text-gray-500">
+                        <X className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p className="text-sm">This chat has been closed</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

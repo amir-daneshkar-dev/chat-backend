@@ -1,14 +1,27 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Users, Settings, LogOut, Bell, Search, Filter } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Users, LogOut, Search } from "lucide-react";
 import ChatList from "./ChatList";
 import ChatSession from "./ChatSession";
+import NotificationManager from "../shared/NotificationManager";
+import ConfirmationModal from "../shared/ConfirmationModal";
+import NotificationDropdown from "../shared/NotificationDropdown";
 import { Chat, Agent } from "../../types";
 import apiService from "../../services/api";
 import socketService from "../../services/socket";
 import authService from "../../services/auth";
+import notificationService from "../../services/notification";
 
 interface AgentConsoleProps {
     className?: string;
+}
+
+interface Notification {
+    id: string;
+    title: string;
+    message: string;
+    userName: string;
+    chatId: string;
+    timestamp: number;
 }
 
 const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
@@ -24,13 +37,32 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
     const [statusFilter, setStatusFilter] = useState<
         "all" | "waiting" | "active" | "closed"
     >("all");
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+
+    const [socketInitialized, setSocketInitialized] = useState(false);
+
+    // Modal state
+    const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+    const [chatToClose, setChatToClose] = useState<string | null>(null);
+
+    // Notification dropdown state
+    const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] =
+        useState(false);
+
+    // Ref to access current agent in callbacks
+    const currentAgentRef = useRef<Agent | null>(null);
 
     // Initialize agent and load chats
     useEffect(() => {
+        if (socketInitialized) {
+            return; // Prevent multiple initializations
+        }
+
         const initializeAgent = async () => {
             try {
                 const agent = authService.getUser() as Agent;
                 setCurrentAgent(agent);
+                currentAgentRef.current = agent;
 
                 // Load chats
                 const chatsData = await apiService.getAgentChats();
@@ -43,19 +75,218 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                 console.log("Agent: Joining agent channel");
                 const agentChannel = socketService.joinAgentChannel({
                     onNewChat: (chat: Chat) => {
-                        console.log("Agent: New chat received:", chat.id);
-                        setChats((prev) => [chat, ...prev]);
+                        console.log("Agent: New chat received:", chat);
+                        console.log("Agent: Chat ID:", chat.id);
+                        console.log("Agent: Chat user:", chat.user);
+
+                        // Ensure chat has required properties
+                        if (!chat.id || !chat.user) {
+                            console.error(
+                                "Agent: Invalid chat data received:",
+                                chat
+                            );
+                            return;
+                        }
+
+                        // Ensure chat has all required fields for the ChatList component
+                        const completeChat: Chat = {
+                            id: chat.id,
+                            user: chat.user,
+                            agent: chat.agent,
+                            messages: chat.messages || [],
+                            status: chat.status || "waiting",
+                            queuePosition: chat.queuePosition,
+                            createdAt: chat.createdAt
+                                ? new Date(chat.createdAt)
+                                : new Date(),
+                            updatedAt: chat.updatedAt
+                                ? new Date(chat.updatedAt)
+                                : new Date(),
+                            unreadCount: chat.unreadCount || 0,
+                        };
+
+                        setChats((prev) => {
+                            // Check if chat already exists to prevent duplicates
+                            const existingChat = prev.find(
+                                (c) => c.id === completeChat.id
+                            );
+                            if (existingChat) {
+                                console.log(
+                                    "Agent: Chat already exists, updating instead"
+                                );
+                                return prev.map((c) =>
+                                    c.id === completeChat.id ? completeChat : c
+                                );
+                            }
+                            return [completeChat, ...prev];
+                        });
+                    },
+                    onNewChatNotification: (notificationData: any) => {
+                        console.log(
+                            "Agent: New chat notification received:",
+                            notificationData
+                        );
+
+                        // Create notification from the received data
+                        const notification: Notification = {
+                            id: `notification-${
+                                notificationData.id
+                            }-${Date.now()}-${Math.random()}`,
+                            title: notificationData.title || "New Chat Request",
+                            message:
+                                notificationData.message ||
+                                "A new chat has been created and is waiting for an agent",
+                            userName:
+                                notificationData.userName ||
+                                notificationData.user?.name ||
+                                "Unknown User",
+                            chatId:
+                                notificationData.chatId || notificationData.id,
+                            timestamp: Date.now(),
+                        };
+
+                        console.log(
+                            "Agent: Creating notification from event:",
+                            notification
+                        );
+
+                        // Use functional update to check for duplicates
+                        setNotifications((prev) => {
+                            // Check if notification already exists to prevent duplicates
+                            const existingNotification = prev.find(
+                                (n) =>
+                                    n.chatId ===
+                                    (notificationData.chatId ||
+                                        notificationData.id)
+                            );
+
+                            if (existingNotification) {
+                                console.log(
+                                    "Agent: Notification already exists, skipping"
+                                );
+                                return prev;
+                            }
+
+                            return [...prev, notification];
+                        });
+
+                        // Show desktop notification if permission is granted
+                        const currentPermission =
+                            notificationService.getPermissionStatus();
+                        if (currentPermission === "granted") {
+                            notificationService.showChatNotification(
+                                notification.userName,
+                                notification.chatId
+                            );
+                        }
                     },
                     onChatUpdate: (updatedChat: Chat) => {
                         console.log(
                             "Agent: Chat update received:",
-                            updatedChat.id
+                            updatedChat.id,
+                            "status:",
+                            updatedChat.status,
+                            "agent:",
+                            updatedChat.agent,
+                            "full data:",
+                            updatedChat
                         );
-                        setChats((prev) =>
-                            prev.map((c) =>
-                                c.id === updatedChat.id ? updatedChat : c
-                            )
-                        );
+
+                        setChats((prev) => {
+                            const existingChat = prev.find(
+                                (c) => c.id === updatedChat.id
+                            );
+
+                            // If the chat is now assigned to another agent and we're not that agent,
+                            // remove it from our list
+                            if (
+                                updatedChat.status === "active" &&
+                                updatedChat.agent &&
+                                updatedChat.agent.id !==
+                                    currentAgentRef.current?.id
+                            ) {
+                                console.log(
+                                    "Agent: Chat assigned to another agent, removing from list:",
+                                    updatedChat.id
+                                );
+                                return prev.filter(
+                                    (c) => c.id !== updatedChat.id
+                                );
+                            }
+
+                            // If the chat is now assigned to us, update it in our list
+                            if (
+                                updatedChat.status === "active" &&
+                                updatedChat.agent &&
+                                updatedChat.agent.id ===
+                                    currentAgentRef.current?.id
+                            ) {
+                                console.log(
+                                    "Agent: Chat assigned to us, updating in list:",
+                                    updatedChat.id
+                                );
+                                // Merge the updated chat with existing chat data to preserve missing fields
+                                const mergedChat = existingChat
+                                    ? {
+                                          ...existingChat,
+                                          ...updatedChat,
+                                          // Ensure we have all required fields
+                                          user:
+                                              updatedChat.user ||
+                                              existingChat.user,
+                                          messages:
+                                              updatedChat.messages ||
+                                              existingChat.messages ||
+                                              [],
+                                          createdAt:
+                                              updatedChat.createdAt ||
+                                              existingChat.createdAt,
+                                          updatedAt:
+                                              updatedChat.updatedAt ||
+                                              existingChat.updatedAt,
+                                          unreadCount:
+                                              updatedChat.unreadCount ||
+                                              existingChat.unreadCount ||
+                                              0,
+                                      }
+                                    : updatedChat;
+
+                                return prev.map((c) =>
+                                    c.id === updatedChat.id ? mergedChat : c
+                                );
+                            }
+
+                            // For other updates, merge with existing data
+                            if (existingChat) {
+                                const mergedChat = {
+                                    ...existingChat,
+                                    ...updatedChat,
+                                    // Ensure we have all required fields
+                                    user: updatedChat.user || existingChat.user,
+                                    messages:
+                                        updatedChat.messages ||
+                                        existingChat.messages ||
+                                        [],
+                                    createdAt:
+                                        updatedChat.createdAt ||
+                                        existingChat.createdAt,
+                                    updatedAt:
+                                        updatedChat.updatedAt ||
+                                        existingChat.updatedAt,
+                                    unreadCount:
+                                        updatedChat.unreadCount ||
+                                        existingChat.unreadCount ||
+                                        0,
+                                };
+
+                                return prev.map((c) =>
+                                    c.id === updatedChat.id ? mergedChat : c
+                                );
+                            }
+
+                            // If no existing chat, just add the new one
+                            return [...prev, updatedChat];
+                        });
                     },
                     onMessage: (message: any) => {
                         console.log(
@@ -85,6 +316,7 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                     console.error("Agent: Failed to join agent channel");
                 } else {
                     console.log("Agent: Successfully joined agent channel");
+                    setSocketInitialized(true);
                 }
             } catch (error) {
                 console.error("Failed to initialize agent console:", error);
@@ -100,7 +332,7 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
         return () => {
             socketService.leaveAgentChannel();
         };
-    }, []);
+    }, [socketInitialized]);
 
     // Cleanup chat channel when component unmounts
     useEffect(() => {
@@ -254,7 +486,8 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                                 ? {
                                       ...c,
                                       status: "active" as const,
-                                      agent: currentAgent || undefined,
+                                      agent:
+                                          currentAgentRef.current || undefined,
                                   }
                                 : c
                         )
@@ -262,7 +495,7 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                 });
             }
         },
-        [chats, currentAgent, selectedChatId]
+        [chats, selectedChatId]
     );
 
     const handleSendMessage = useCallback(
@@ -490,6 +723,51 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
         }
     }, []);
 
+    const handleCloseChat = useCallback(async (chatId: string) => {
+        // Set the chat to close and open the modal
+        setChatToClose(chatId);
+        setIsCloseModalOpen(true);
+    }, []);
+
+    const handleConfirmCloseChat = useCallback(async () => {
+        if (!chatToClose) return;
+
+        try {
+            console.log("Agent: Closing chat:", chatToClose);
+
+            // Call the API to close the chat
+            const updatedChat = await apiService.closeChatAsAgent(chatToClose);
+
+            // Update the chat in the list
+            setChats((prev) =>
+                prev.map((chat) =>
+                    chat.id === chatToClose
+                        ? { ...chat, status: "closed" as const }
+                        : chat
+                )
+            );
+
+            // Clear the selected chat if it's the one being closed
+            if (selectedChatId === chatToClose) {
+                setSelectedChatId(undefined);
+            }
+
+            console.log("Agent: Chat closed successfully:", chatToClose);
+        } catch (error) {
+            console.error("Failed to close chat:", error);
+            // Show user-friendly error message
+            alert(
+                `Failed to close chat: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                }`
+            );
+        } finally {
+            // Reset modal state
+            setChatToClose(null);
+            setIsCloseModalOpen(false);
+        }
+    }, [chatToClose, selectedChatId]);
+
     const handleLogout = useCallback(async () => {
         try {
             await apiService.logout();
@@ -499,6 +777,34 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
             console.error("Failed to logout:", error);
         }
     }, []);
+
+    // Notification handlers
+    const handleNotificationClose = useCallback((id: string) => {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+    }, []);
+
+    const handleNotificationClick = useCallback((chatId: string) => {
+        setSelectedChatId(chatId);
+        // Remove the notification after clicking
+        setNotifications((prev) => prev.filter((n) => n.chatId !== chatId));
+    }, []);
+
+    // Listen for desktop notification clicks
+    useEffect(() => {
+        const handleOpenChat = (event: CustomEvent) => {
+            const { chatId } = event.detail;
+            handleNotificationClick(chatId);
+        };
+
+        window.addEventListener("openChat", handleOpenChat as EventListener);
+
+        return () => {
+            window.removeEventListener(
+                "openChat",
+                handleOpenChat as EventListener
+            );
+        };
+    }, [handleNotificationClick]);
 
     const filteredChats = (chats || []).filter((chat) => {
         // Safety check for chat structure
@@ -555,6 +861,13 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
 
     return (
         <div className={`h-screen flex flex-col bg-gray-50 ${className}`}>
+            {/* Notifications */}
+            <NotificationManager
+                notifications={notifications}
+                onClose={handleNotificationClose}
+                onClick={handleNotificationClick}
+            />
+
             {/* Header */}
             <header className="bg-white border-b px-6 py-4">
                 <div className="flex items-center justify-between">
@@ -573,12 +886,16 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                     </div>
 
                     <div className="flex items-center space-x-4">
-                        <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors">
-                            <Bell className="h-5 w-5" />
-                        </button>
-                        <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors">
-                            <Settings className="h-5 w-5" />
-                        </button>
+                        <NotificationDropdown
+                            isOpen={isNotificationDropdownOpen}
+                            onToggle={() =>
+                                setIsNotificationDropdownOpen(
+                                    !isNotificationDropdownOpen
+                                )
+                            }
+                            onClose={() => setIsNotificationDropdownOpen(false)}
+                        />
+
                         <button
                             onClick={handleLogout}
                             className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
@@ -653,6 +970,7 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                             onVoiceMessage={handleVoiceMessage}
                             onTyping={handleTyping}
                             onMarkAsRead={handleMarkAsRead}
+                            onCloseChat={handleCloseChat}
                             typingStatuses={typingStatuses}
                         />
                     ) : (
@@ -671,6 +989,21 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                     )}
                 </div>
             </div>
+
+            {/* Close Chat Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={isCloseModalOpen}
+                onClose={() => {
+                    setIsCloseModalOpen(false);
+                    setChatToClose(null);
+                }}
+                onConfirm={handleConfirmCloseChat}
+                title="Close Chat"
+                message="Are you sure you want to close this chat? This action cannot be undone."
+                confirmText="Close Chat"
+                cancelText="Cancel"
+                confirmButtonClass="bg-red-600 hover:bg-red-700"
+            />
         </div>
     );
 };

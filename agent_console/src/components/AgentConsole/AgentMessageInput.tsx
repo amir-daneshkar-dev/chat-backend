@@ -17,6 +17,7 @@ interface AgentMessageInputProps {
     onFileUpload: (file: File) => Promise<void>;
     onVoiceMessage: (audioBlob: Blob, duration: number) => void;
     onTyping: (isTyping: boolean) => void;
+    onCloseChat?: () => void;
     disabled?: boolean;
     placeholder?: string;
 }
@@ -26,6 +27,7 @@ const AgentMessageInput: React.FC<AgentMessageInputProps> = ({
     onFileUpload,
     onVoiceMessage,
     onTyping,
+    onCloseChat,
     disabled = false,
     placeholder = "Type your response...",
 }) => {
@@ -236,6 +238,18 @@ const AgentMessageInput: React.FC<AgentMessageInputProps> = ({
                         >
                             <Smile className="h-4 w-4" />
                         </button>
+
+                        {onCloseChat && (
+                            <button
+                                type="button"
+                                onClick={onCloseChat}
+                                className="p-2 text-red-500 hover:text-red-700 transition-colors"
+                                disabled={disabled}
+                                title="Close chat"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
                     </div>
 
                     <div className="flex items-center space-x-2 text-xs text-gray-500">

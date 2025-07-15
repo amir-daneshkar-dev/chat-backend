@@ -193,6 +193,7 @@ class SocketService {
         onNewChat?: (chat: any) => void;
         onChatUpdate?: (chat: any) => void;
         onMessage?: (message: any) => void;
+        onNewChatNotification?: (notification: any) => void;
     }) {
         if (!this.echo) {
             console.error("Agent: Echo not initialized for agent channel");
@@ -215,9 +216,31 @@ class SocketService {
         });
 
         if (callbacks.onNewChat) {
-            channel.listen(".ChatCreated", (data: any) => {
-                console.log("Agent: ChatCreated event received:", data);
-                callbacks.onNewChat!(data.chat || data);
+            channel.listen(".NewChatAssigned", (data: any) => {
+                console.log("Agent: NewChatAssigned event received:", data);
+                console.log(
+                    "Agent: Full event data:",
+                    JSON.stringify(data, null, 2)
+                );
+                const chatData = data.chat || data;
+                console.log("Agent: Extracted chat data:", chatData);
+                callbacks.onNewChat!(chatData);
+            });
+        }
+
+        if (callbacks.onNewChatNotification) {
+            channel.listen(".NewChatNotification", (data: any) => {
+                console.log("Agent: NewChatNotification event received:", data);
+                console.log(
+                    "Agent: Full notification data:",
+                    JSON.stringify(data, null, 2)
+                );
+                const notificationData = data.notification || data;
+                console.log(
+                    "Agent: Extracted notification data:",
+                    notificationData
+                );
+                callbacks.onNewChatNotification!(notificationData);
             });
         }
 

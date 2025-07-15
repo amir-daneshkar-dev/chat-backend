@@ -279,7 +279,7 @@ class ApiService {
 
     async closeChatAsAgent(chatId: string) {
         try {
-            const response = await this.api.put(
+            const response = await this.api.post(
                 `/api/agent/chats/${chatId}/close`
             );
             return response.data.chat;

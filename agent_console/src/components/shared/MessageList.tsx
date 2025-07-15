@@ -17,6 +17,7 @@ const MessageList: React.FC<MessageListProps> = ({
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        // Auto-scroll to bottom when new messages are added
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
@@ -121,7 +122,7 @@ const MessageList: React.FC<MessageListProps> = ({
     };
 
     return (
-        <div className={`flex-1 overflow-y-auto p-4 space-y-2 ${className}`}>
+        <div className={`p-4 space-y-2 ${className}`}>
             {messages.length === 0 ? (
                 <div className="text-center py-8">
                     <p className="text-gray-500">
