@@ -41,6 +41,11 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
 
     const [socketInitialized, setSocketInitialized] = useState(false);
 
+    // Track active chat channels to ensure we don't leave channels unnecessarily
+    const [activeChatChannels, setActiveChatChannels] = useState<Set<string>>(
+        new Set()
+    );
+
     // Modal state
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [chatToClose, setChatToClose] = useState<string | null>(null);
@@ -51,6 +56,145 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
 
     // Ref to access current agent in callbacks
     const currentAgentRef = useRef<Agent | null>(null);
+
+    // Function to ensure chat channel is subscribed
+    const ensureChatChannelSubscription = useCallback(
+        (chatId: string) => {
+            if (activeChatChannels.has(chatId)) {
+                console.log("Agent: Chat channel already subscribed:", chatId);
+                return;
+            }
+
+            console.log("Agent: Joining chat channel:", chatId);
+            socketService.joinChatChannel(chatId, {
+                onMessage: (message: any) => {
+                    console.log(
+                        "Agent: Message received for chat:",
+                        chatId,
+                        "full data:",
+                        message
+                    );
+                    setChats((prev) =>
+                        prev.map((chat) =>
+                            chat.id === chatId
+                                ? {
+                                      ...chat,
+                                      messages: chat.messages.some(
+                                          (m) => m.id === message.id
+                                      )
+                                          ? chat.messages
+                                          : [...chat.messages, message],
+                                  }
+                                : chat
+                        )
+                    );
+                },
+                onTyping: (typing: any) => {
+                    // Clear existing timeout for this user if it exists
+                    const timeoutKey = `${typing.chatId}-${typing.userId}`;
+                    const existingTimeout = typingTimeouts.get(timeoutKey);
+                    if (existingTimeout) {
+                        clearTimeout(existingTimeout);
+                    }
+
+                    setTypingStatuses((prev) => {
+                        console.log("Agent: Previous typing statuses:", prev);
+                        const filtered = prev.filter(
+                            (t) =>
+                                t.chatId !== typing.chatId ||
+                                t.userId !== typing.userId
+                        );
+                        const newStatuses = typing.isTyping
+                            ? [...filtered, typing]
+                            : filtered;
+                        return newStatuses;
+                    });
+
+                    // Set new timeout to clear typing status after 5 seconds
+                    if (typing.isTyping) {
+                        const newTimeout = setTimeout(() => {
+                            console.log(
+                                "Agent: Clearing typing status for timeout:",
+                                timeoutKey
+                            );
+                            setTypingStatuses((prev) =>
+                                prev.filter(
+                                    (t) =>
+                                        t.chatId !== typing.chatId ||
+                                        t.userId !== typing.userId
+                                )
+                            );
+                            setTypingTimeouts((prev) => {
+                                const newMap = new Map(prev);
+                                newMap.delete(timeoutKey);
+                                return newMap;
+                            });
+                        }, 5000);
+
+                        setTypingTimeouts((prev) => {
+                            const newMap = new Map(prev);
+                            newMap.set(timeoutKey, newTimeout);
+                            return newMap;
+                        });
+                    } else {
+                        // Remove timeout if typing stopped
+                        setTypingTimeouts((prev) => {
+                            const newMap = new Map(prev);
+                            newMap.delete(timeoutKey);
+                            return newMap;
+                        });
+                    }
+                },
+                onAgentJoined: (agent) => {
+                    console.log(
+                        "Agent: Agent joined event for chat:",
+                        chatId,
+                        agent
+                    );
+                    setChats((prev) =>
+                        prev.map((chat) =>
+                            chat.id === chatId ? { ...chat, agent } : chat
+                        )
+                    );
+                },
+                onAgentLeft: () => {
+                    console.log("Agent: Agent left event for chat:", chatId);
+                    setChats((prev) =>
+                        prev.map((chat) =>
+                            chat.id === chatId
+                                ? { ...chat, agent: undefined }
+                                : chat
+                        )
+                    );
+                },
+            });
+
+            setActiveChatChannels((prev) => new Set([...prev, chatId]));
+        },
+        [activeChatChannels, typingTimeouts]
+    );
+
+    // Function to leave chat channel when chat is actually removed
+    const leaveChatChannel = useCallback(
+        (chatId: string) => {
+            if (!activeChatChannels.has(chatId)) {
+                console.log(
+                    "Agent: Chat channel not subscribed, skipping leave:",
+                    chatId
+                );
+                return;
+            }
+
+            console.log("Agent: Leaving chat channel:", chatId);
+            socketService.leaveChatChannel(chatId);
+            setActiveChatChannels((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(chatId);
+                return newSet;
+            });
+        },
+        [activeChatChannels]
+    );
 
     // Initialize agent and load chats
     useEffect(() => {
@@ -66,7 +210,15 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
 
                 // Load chats
                 const chatsData = await apiService.getAgentChats();
-                setChats(Array.isArray(chatsData) ? chatsData : []);
+                const chatsArray = Array.isArray(chatsData) ? chatsData : [];
+                setChats(chatsArray);
+
+                // Subscribe to channels for all loaded chats
+                chatsArray.forEach((chat) => {
+                    if (chat.id) {
+                        ensureChatChannelSubscription(chat.id);
+                    }
+                });
 
                 // Ensure socket connection is established
                 socketService.ensureConnection();
@@ -120,6 +272,9 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                             }
                             return [completeChat, ...prev];
                         });
+
+                        // Automatically subscribe to the new chat channel
+                        ensureChatChannelSubscription(chat.id);
                     },
                     onNewChatNotification: (notificationData: any) => {
                         console.log(
@@ -198,7 +353,7 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                             );
 
                             // If the chat is now assigned to another agent and we're not that agent,
-                            // remove it from our list
+                            // remove it from our list and leave the channel
                             if (
                                 updatedChat.status === "active" &&
                                 updatedChat.agent &&
@@ -209,6 +364,8 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                                     "Agent: Chat assigned to another agent, removing from list:",
                                     updatedChat.id
                                 );
+                                // Leave the chat channel since we're no longer assigned
+                                leaveChatChannel(updatedChat.id);
                                 return prev.filter(
                                     (c) => c.id !== updatedChat.id
                                 );
@@ -225,6 +382,9 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                                     "Agent: Chat assigned to us, updating in list:",
                                     updatedChat.id
                                 );
+                                // Ensure we're subscribed to this chat channel
+                                ensureChatChannelSubscription(updatedChat.id);
+
                                 // Merge the updated chat with existing chat data to preserve missing fields
                                 const mergedChat = existingChat
                                     ? {
@@ -334,19 +494,38 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
         };
     }, [socketInitialized]);
 
-    // Cleanup chat channel when component unmounts
+    // Cleanup all chat channels when component unmounts
     useEffect(() => {
         return () => {
-            if (selectedChatId) {
-                socketService.leaveChatChannel(selectedChatId);
-            }
+            // Leave all active chat channels
+            activeChatChannels.forEach((chatId) => {
+                console.log("Agent: Leaving chat channel on unmount:", chatId);
+                socketService.leaveChatChannel(chatId);
+            });
         };
-    }, [selectedChatId]);
+    }, [activeChatChannels]);
 
     // Monitor typing statuses changes
     useEffect(() => {
         console.log("Agent: Typing statuses changed:", typingStatuses);
     }, [typingStatuses]);
+
+    // Monitor chats changes and clean up channels for removed chats
+    useEffect(() => {
+        const currentChatIds = new Set(chats.map((chat) => chat.id));
+        const subscribedChatIds = activeChatChannels;
+
+        // Find channels that are subscribed but no longer in the chats list
+        subscribedChatIds.forEach((chatId) => {
+            if (!currentChatIds.has(chatId)) {
+                console.log(
+                    "Agent: Chat removed from list, leaving channel:",
+                    chatId
+                );
+                leaveChatChannel(chatId);
+            }
+        });
+    }, [chats, activeChatChannels, leaveChatChannel]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -360,121 +539,10 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
 
     const handleChatSelect = useCallback(
         (chatId: string) => {
-            // Leave previous chat channel if any
-            if (selectedChatId) {
-                console.log(
-                    "Agent: Leaving previous chat channel:",
-                    selectedChatId
-                );
-                socketService.leaveChatChannel(selectedChatId);
-            }
+            // Ensure the selected chat channel is subscribed (don't leave previous channels)
+            ensureChatChannelSubscription(chatId);
 
             setSelectedChatId(chatId);
-
-            // Join the specific chat channel for this chat
-            console.log("Agent: Joining chat channel:", chatId);
-            socketService.joinChatChannel(chatId, {
-                onMessage: (message: any) => {
-                    console.log(
-                        "Agent: Message received for chat:",
-                        chatId,
-                        "full data:",
-                        message
-                    );
-                    setChats((prev) =>
-                        prev.map((chat) =>
-                            chat.id === chatId
-                                ? {
-                                      ...chat,
-                                      messages: chat.messages.some(
-                                          (m) => m.id === message.id
-                                      )
-                                          ? chat.messages
-                                          : [...chat.messages, message],
-                                  }
-                                : chat
-                        )
-                    );
-                },
-                onTyping: (typing: any) => {
-                    // Clear existing timeout for this user if it exists
-                    const timeoutKey = `${typing.chatId}-${typing.userId}`;
-                    const existingTimeout = typingTimeouts.get(timeoutKey);
-                    if (existingTimeout) {
-                        clearTimeout(existingTimeout);
-                    }
-
-                    setTypingStatuses((prev) => {
-                        console.log("Agent: Previous typing statuses:", prev);
-                        const filtered = prev.filter(
-                            (t) =>
-                                t.chatId !== typing.chatId ||
-                                t.userId !== typing.userId
-                        );
-                        const newStatuses = typing.isTyping
-                            ? [...filtered, typing]
-                            : filtered;
-                        return newStatuses;
-                    });
-
-                    // Set new timeout to clear typing status after 5 seconds
-                    if (typing.isTyping) {
-                        const newTimeout = setTimeout(() => {
-                            console.log(
-                                "Agent: Clearing typing status for timeout:",
-                                timeoutKey
-                            );
-                            setTypingStatuses((prev) =>
-                                prev.filter(
-                                    (t) =>
-                                        t.chatId !== typing.chatId ||
-                                        t.userId !== typing.userId
-                                )
-                            );
-                            setTypingTimeouts((prev) => {
-                                const newMap = new Map(prev);
-                                newMap.delete(timeoutKey);
-                                return newMap;
-                            });
-                        }, 5000);
-
-                        setTypingTimeouts((prev) => {
-                            const newMap = new Map(prev);
-                            newMap.set(timeoutKey, newTimeout);
-                            return newMap;
-                        });
-                    } else {
-                        // Remove timeout if typing stopped
-                        setTypingTimeouts((prev) => {
-                            const newMap = new Map(prev);
-                            newMap.delete(timeoutKey);
-                            return newMap;
-                        });
-                    }
-                },
-                onAgentJoined: (agent) => {
-                    console.log(
-                        "Agent: Agent joined event for chat:",
-                        chatId,
-                        agent
-                    );
-                    setChats((prev) =>
-                        prev.map((chat) =>
-                            chat.id === chatId ? { ...chat, agent } : chat
-                        )
-                    );
-                },
-                onAgentLeft: () => {
-                    console.log("Agent: Agent left event for chat:", chatId);
-                    setChats((prev) =>
-                        prev.map((chat) =>
-                            chat.id === chatId
-                                ? { ...chat, agent: undefined }
-                                : chat
-                        )
-                    );
-                },
-            });
 
             // Mark chat as active if it was waiting
             const chat = chats.find((c) => c.id === chatId);
@@ -495,7 +563,7 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                 });
             }
         },
-        [chats, selectedChatId]
+        [chats, ensureChatChannelSubscription]
     );
 
     const handleSendMessage = useCallback(
@@ -752,6 +820,9 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
                 setSelectedChatId(undefined);
             }
 
+            // Leave the chat channel since the chat is now closed
+            leaveChatChannel(chatToClose);
+
             console.log("Agent: Chat closed successfully:", chatToClose);
         } catch (error) {
             console.error("Failed to close chat:", error);
@@ -766,7 +837,7 @@ const AgentConsole: React.FC<AgentConsoleProps> = ({ className = "" }) => {
             setChatToClose(null);
             setIsCloseModalOpen(false);
         }
-    }, [chatToClose, selectedChatId]);
+    }, [chatToClose, selectedChatId, leaveChatChannel]);
 
     const handleLogout = useCallback(async () => {
         try {

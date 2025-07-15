@@ -40,7 +40,6 @@ const MessageList: React.FC<MessageListProps> = ({
 
         return (
             <div
-                key={message.id}
                 className={`flex ${
                     isAgent ? "justify-start" : "justify-end"
                 } mb-4`}
@@ -133,7 +132,11 @@ const MessageList: React.FC<MessageListProps> = ({
                     </p>
                 </div>
             ) : (
-                messages.map(renderMessage)
+                messages.map((message) => (
+                    <React.Fragment key={message.id}>
+                        {renderMessage(message)}
+                    </React.Fragment>
+                ))
             )}
             <div ref={messagesEndRef} />
         </div>
