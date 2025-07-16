@@ -12,9 +12,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            UserSeeder::class,        // Creates default organization and users
-            ChatSeeder::class,        // Creates chats for the default organization
-            DemoDataSeeder::class,    // Creates additional organizations and data
+            ApplicationSetupSeeder::class,  // Creates initial organization, admin, and agent
+            ChatSeeder::class,              // Creates chats for the default organization
+            DemoDataSeeder::class,          // Creates additional organizations and data
         ]);
     }
 }
