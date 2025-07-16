@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\MessageType;
+use App\Http\Requests\Message\CreateMessageRequest;
 use App\Models\Chat;
 use App\Models\Message;
 use App\Events\MessageSent;
@@ -20,18 +22,13 @@ class MessageController extends Controller
     /**
      * Send a message in a chat.
      */
-    public function store(Request $request, $chatId)
+    public function store(CreateMessageRequest $request, $chatId)
     {
-        $request->validate([
-            'content' => 'required|string',
-            'type' => 'sometimes|in:text,file,image,voice,system',
-            'file_url' => 'sometimes|url',
-            'file_name' => 'sometimes|string',
-            'file_size' => 'sometimes|integer',
-            'voice_duration' => 'sometimes|integer',
-        ]);
+        $organizationId = $request->attributes->get('organization_id');
 
-        $chat = Chat::where('uuid', $chatId)->firstOrFail();
+        $chat = Chat::where('uuid', $chatId)
+            ->where('organization_id', $organizationId)
+            ->firstOrFail();
         $user = $request->user();
 
         // Check if user has access to this chat
@@ -41,7 +38,7 @@ class MessageController extends Controller
 
         $message = $this->messageService->createMessage($chat, $user, [
             'content' => $request->content,
-            'type' => $request->type ?? 'text',
+            'type' => MessageType::from($request->type ?? 'text'),
             'file_url' => $request->file_url,
             'file_name' => $request->file_name,
             'file_size' => $request->file_size,
@@ -58,7 +55,11 @@ class MessageController extends Controller
      */
     public function markAsRead(Request $request, $messageId)
     {
-        $message = Message::where('uuid', $messageId)->firstOrFail();
+        $organizationId = $request->attributes->get('organization_id');
+
+        $message = Message::where('uuid', $messageId)
+            ->where('organization_id', $organizationId)
+            ->firstOrFail();
         $user = $request->user();
 
         // Check if user has access to this message
@@ -76,7 +77,11 @@ class MessageController extends Controller
      */
     public function index(Request $request, $chatId)
     {
-        $chat = Chat::where('uuid', $chatId)->firstOrFail();
+        $organizationId = $request->attributes->get('organization_id');
+
+        $chat = Chat::where('uuid', $chatId)
+            ->where('organization_id', $organizationId)
+            ->firstOrFail();
         $user = $request->user();
 
         // Check if user has access to this chat

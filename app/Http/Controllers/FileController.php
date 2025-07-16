@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\File\DeleteFileRequest;
+use App\Http\Requests\File\UploadFileRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -11,13 +13,8 @@ class FileController extends Controller
     /**
      * Upload a file.
      */
-    public function upload(Request $request)
+    public function upload(UploadFileRequest $request)
     {
-        $request->validate([
-            'file' => 'required|file|max:' . (config('app.max_file_size', 10240)), // Default 10MB
-            'chat_id' => 'required|string',
-        ]);
-
         $file = $request->file('file');
         $chatId = $request->chat_id;
 
@@ -56,12 +53,8 @@ class FileController extends Controller
     /**
      * Delete a file.
      */
-    public function delete(Request $request)
+    public function delete(DeleteFileRequest $request)
     {
-        $request->validate([
-            'path' => 'required|string',
-        ]);
-
         $deleted = Storage::disk('public')->delete($request->path);
 
         if ($deleted) {

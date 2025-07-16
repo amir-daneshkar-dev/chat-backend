@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AgentStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,7 +15,7 @@ return new class extends Migration
         Schema::create('agents', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->enum('status', ['available', 'busy', 'offline'])->default('offline');
+            $table->string('status')->default(AgentStatus::OFFLINE->value);
             $table->integer('active_chats')->default(0);
             $table->integer('max_chats')->default(5);
             $table->json('skills')->nullable();

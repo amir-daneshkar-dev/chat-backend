@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "support-chat-api-collection",
         "name": "Support Chat API Collection",
-        "description": "Complete API collection for the Laravel Support Chat System with Reverb WebSockets",
+        "description": "Complete API collection for the Laravel Support Chat System with Reverb WebSockets, Form Request validation, and Organization management",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
@@ -13,6 +13,11 @@
         },
         {
             "key": "auth_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "api_key",
             "value": "",
             "type": "string"
         },
@@ -28,6 +33,11 @@
         },
         {
             "key": "file_name",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "organization_id",
             "value": "",
             "type": "string"
         }
@@ -71,7 +81,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "auth", "login"]
                         },
-                        "description": "Login with email and password. Returns token and user data."
+                        "description": "Login with email and password. Returns token and user data.\n\n**Validation Rules:**\n- email: required, valid email format\n- password: required"
                     },
                     "response": []
                 },
@@ -100,7 +110,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "auth", "register"]
                         },
-                        "description": "Register a new user. Role can be 'user' or 'agent'."
+                        "description": "Register a new user.\n\n**Validation Rules:**\n- name: required, string, max 255 characters\n- email: required, valid email, max 255 characters, unique\n- password: required, string, min 8 characters, confirmed\n- role: optional, must be 'user' or 'agent'"
                     },
                     "response": []
                 },
@@ -125,7 +135,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "auth", "logout"]
                         },
-                        "description": "Logout the authenticated user and revoke token."
+                        "description": "Logout the authenticated user and revoke token. Requires authentication."
                     },
                     "response": []
                 },
@@ -145,7 +155,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "auth", "user"]
                         },
-                        "description": "Get the authenticated user's information."
+                        "description": "Get the authenticated user's information. Requires authentication."
                     },
                     "response": []
                 }
@@ -153,10 +163,10 @@
             "description": "Authentication endpoints for login, register, logout, and user info."
         },
         {
-            "name": "Chats",
+            "name": "Organizations",
             "item": [
                 {
-                    "name": "Create Chat (Guest)",
+                    "name": "Register Organization",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -173,6 +183,193 @@
                         ],
                         "body": {
                             "mode": "raw",
+                            "raw": "{\n  \"name\": \"Acme Corporation\",\n  \"domain\": \"acme.com\",\n  \"subscription_plan_slug\": \"basic\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/register",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "organizations", "register"]
+                        },
+                        "description": "Register a new organization.\n\n**Validation Rules:**\n- name: required, string, max 255 characters\n- domain: optional, string, max 255 characters, unique\n- subscription_plan_slug: optional, must exist in subscription_plans table\n\n**Note:** Organizations can exist without a subscription plan (subscription_plan_id = null)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Validate API Key",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"api_key\": \"your-api-key-here\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/validate-api-key",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "organizations", "validate-api-key"]
+                        },
+                        "description": "Validate an organization's API key.\n\n**Validation Rules:**\n- api_key: required, string"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Subscription Plans",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/subscription-plans",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "subscription-plans"]
+                        },
+                        "description": "Get all available subscription plans."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Organization",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "organizations"]
+                        },
+                        "description": "Get the current organization's information. Requires authentication."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Organization",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Organization Name\",\n  \"domain\": \"newdomain.com\",\n  \"subscription_plan_slug\": \"premium\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "organizations"]
+                        },
+                        "description": "Update organization information.\n\n**Validation Rules:**\n- name: optional, string, max 255 characters\n- domain: optional, string, max 255 characters, unique\n- subscription_plan_slug: optional, must exist in subscription_plans table"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Regenerate API Key",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/regenerate-api-key",
+                            "host": ["{{base_url}}"],
+                            "path": [
+                                "api",
+                                "organizations",
+                                "regenerate-api-key"
+                            ]
+                        },
+                        "description": "Regenerate the organization's API key. Requires authentication."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Organization Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/organizations/stats",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "organizations", "stats"]
+                        },
+                        "description": "Get organization statistics. Requires authentication."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Organization management endpoints for registration, validation, and administration."
+        },
+        {
+            "name": "Chats",
+            "item": [
+                {
+                    "name": "Create Chat (Guest) - API Key Protected",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-API-Key",
+                                "value": "{{api_key}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
                             "raw": "{\n  \"name\": \"Guest User\",\n  \"email\": \"guest@example.com\"\n}"
                         },
                         "url": {
@@ -180,7 +377,37 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats"]
                         },
-                        "description": "Create a new chat (no authentication required for guest users)."
+                        "description": "Create a new chat (API key protected for guest users).\n\n**Validation Rules:**\n- name: optional, string, max 255 characters\n- email: optional, valid email, max 255 characters\n\n**Headers Required:**\n- X-API-Key: Organization's API key"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get User Chats - API Key Protected",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-API-Key",
+                                "value": "{{api_key}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/chats/user/guest@example.com",
+                            "host": ["{{base_url}}"],
+                            "path": [
+                                "api",
+                                "chats",
+                                "user",
+                                "guest@example.com"
+                            ]
+                        },
+                        "description": "Get all chats for a specific user by email (API key protected).\n\n**Headers Required:**\n- X-API-Key: Organization's API key"
                     },
                     "response": []
                 },
@@ -200,7 +427,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats"]
                         },
-                        "description": "Get all chats for the authenticated user (or agent)."
+                        "description": "Get all chats for the authenticated user (or agent). Requires authentication."
                     },
                     "response": []
                 },
@@ -220,7 +447,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}"]
                         },
-                        "description": "Get a specific chat by its UUID."
+                        "description": "Get a specific chat by its UUID. Requires authentication."
                     },
                     "response": []
                 },
@@ -249,7 +476,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}"]
                         },
-                        "description": "Update a chat (e.g., change status to 'waiting', 'active', 'closed')."
+                        "description": "Update a chat (e.g., change status to 'waiting', 'active', 'closed'). Requires authentication."
                     },
                     "response": []
                 },
@@ -269,7 +496,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}"]
                         },
-                        "description": "Delete a chat."
+                        "description": "Delete a chat. Requires authentication."
                     },
                     "response": []
                 }
@@ -295,12 +522,12 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}", "messages"]
                         },
-                        "description": "Get all messages for a specific chat with pagination."
+                        "description": "Get all messages for a specific chat with pagination. Requires authentication."
                     },
                     "response": []
                 },
                 {
-                    "name": "Send Message",
+                    "name": "Send Text Message",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -324,7 +551,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}", "messages"]
                         },
-                        "description": "Send a new message in a chat. Types: text, file, image, voice, system."
+                        "description": "Send a new text message in a chat.\n\n**Validation Rules:**\n- content: required, string\n- type: optional, must be one of: text, file, image, voice, system"
                     },
                     "response": []
                 },
@@ -353,7 +580,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}", "messages"]
                         },
-                        "description": "Send a file message with file details."
+                        "description": "Send a file message with file details.\n\n**Validation Rules:**\n- content: required, string\n- type: optional, must be one of: text, file, image, voice, system\n- file_url: optional, valid URL\n- file_name: optional, string\n- file_size: optional, integer"
                     },
                     "response": []
                 },
@@ -382,7 +609,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}", "messages"]
                         },
-                        "description": "Send a voice message with duration information."
+                        "description": "Send a voice message with duration information.\n\n**Validation Rules:**\n- content: required, string\n- type: optional, must be one of: text, file, image, voice, system\n- file_url: optional, valid URL\n- file_name: optional, string\n- file_size: optional, integer\n- voice_duration: optional, integer"
                     },
                     "response": []
                 },
@@ -412,7 +639,7 @@
                                 "read"
                             ]
                         },
-                        "description": "Mark a specific message as read."
+                        "description": "Mark a specific message as read. Requires authentication."
                     },
                     "response": []
                 }
@@ -453,7 +680,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "files", "upload"]
                         },
-                        "description": "Upload a file for a specific chat. Max file size: 10MB. Allowed types: jpg,jpeg,png,gif,pdf,doc,docx,txt"
+                        "description": "Upload a file for a specific chat. Requires authentication.\n\n**File Restrictions:**\n- Max file size: 10MB\n- Allowed types: jpg,jpeg,png,gif,pdf,doc,docx,txt"
                     },
                     "response": []
                 },
@@ -482,7 +709,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "files"]
                         },
-                        "description": "Delete a file by its storage path."
+                        "description": "Delete a file by its storage path. Requires authentication."
                     },
                     "response": []
                 },
@@ -502,7 +729,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "files", "{{file_name}}", "info"]
                         },
-                        "description": "Get information about a specific file."
+                        "description": "Get information about a specific file. Requires authentication."
                     },
                     "response": []
                 }
@@ -537,7 +764,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}", "typing"]
                         },
-                        "description": "Update typing status for a chat (true = typing, false = stopped typing)."
+                        "description": "Update typing status for a chat (true = typing, false = stopped typing). Requires authentication."
                     },
                     "response": []
                 },
@@ -557,7 +784,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "chats", "{{chat_id}}", "typing"]
                         },
-                        "description": "Get all active typing statuses for a chat."
+                        "description": "Get all active typing statuses for a chat. Requires authentication."
                     },
                     "response": []
                 },
@@ -603,7 +830,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "agent", "chats"]
                         },
-                        "description": "Get all chats for agent dashboard (assigned + waiting)."
+                        "description": "Get all chats for agent dashboard (assigned + waiting). Requires agent authentication."
                     },
                     "response": []
                 },
@@ -634,7 +861,7 @@
                                 "assign"
                             ]
                         },
-                        "description": "Assign a waiting chat to the current agent."
+                        "description": "Assign a waiting chat to the current agent. Requires agent authentication."
                     },
                     "response": []
                 },
@@ -665,7 +892,7 @@
                                 "close"
                             ]
                         },
-                        "description": "Close a chat (agent only)."
+                        "description": "Close a chat (agent only). Requires agent authentication."
                     },
                     "response": []
                 },
@@ -694,7 +921,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "agent", "status"]
                         },
-                        "description": "Update agent status (available, busy, offline)."
+                        "description": "Update agent status.\n\n**Validation Rules:**\n- status: required, must be one of: available, busy, offline\n\n**Requires agent authentication.**"
                     },
                     "response": []
                 },
@@ -714,7 +941,7 @@
                             "host": ["{{base_url}}"],
                             "path": ["api", "agent", "stats"]
                         },
-                        "description": "Get agent statistics (active chats, total chats, waiting chats, closed today)."
+                        "description": "Get agent statistics (active chats, total chats, waiting chats, closed today). Requires agent authentication."
                     },
                     "response": []
                 }
@@ -739,6 +966,12 @@
                     "    }",
                     "    if (response.id) {",
                     "        pm.collectionVariables.set('message_id', response.id);",
+                    "    }",
+                    "    if (response.organization && response.organization.id) {",
+                    "        pm.collectionVariables.set('organization_id', response.organization.id);",
+                    "    }",
+                    "    if (response.api_key) {",
+                    "        pm.collectionVariables.set('api_key', response.api_key);",
                     "    }",
                     "}"
                 ]

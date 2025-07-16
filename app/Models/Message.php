@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\MessageType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -20,6 +21,7 @@ class Message extends Model
         'uuid',
         'chat_id',
         'user_id',
+        'organization_id',
         'content',
         'type',
         'file_url',
@@ -42,6 +44,7 @@ class Message extends Model
         'file_size' => 'integer',
         'voice_duration' => 'integer',
         'metadata' => 'array',
+        'type' => MessageType::class,
     ];
 
     /**
@@ -99,8 +102,16 @@ class Message extends Model
     /**
      * Scope for messages by type.
      */
-    public function scopeOfType($query, string $type)
+    public function scopeOfType($query, MessageType $type)
     {
         return $query->where('type', $type);
+    }
+
+    /**
+     * Scope for messages belonging to a specific organization.
+     */
+    public function scopeForOrganization($query, int $organizationId)
+    {
+        return $query->where('organization_id', $organizationId);
     }
 }

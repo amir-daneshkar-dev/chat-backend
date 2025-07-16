@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\MessageType;
 use App\Models\Chat;
 use App\Models\User;
 use App\Models\Message;
@@ -16,8 +17,9 @@ class MessageService
         $message = Message::create([
             'chat_id' => $chat->id,
             'user_id' => $user->id,
+            'organization_id' => $chat->organization_id,
             'content' => $data['content'],
-            'type' => $data['type'] ?? 'text',
+            'type' => $data['type'] ?? MessageType::TEXT,
             'file_url' => $data['file_url'] ?? null,
             'file_name' => $data['file_name'] ?? null,
             'file_size' => $data['file_size'] ?? null,

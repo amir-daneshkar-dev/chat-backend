@@ -3,6 +3,7 @@
 namespace App\Models\Relations;
 
 use App\Models\Message;
+use App\Models\Organization;
 use App\Models\User;
 
 trait ChatRelationsTrait
@@ -37,5 +38,10 @@ trait ChatRelationsTrait
     public function latestMessage()
     {
         return $this->hasOne(Message::class)->latestOfMany();
+    }
+
+    public function organization()
+    {
+        return $this->belongsTo(Organization::class);
     }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use App\Models\Agent;
 use Illuminate\Http\Request;
@@ -14,13 +16,8 @@ class AuthController extends Controller
     /**
      * Login user and return token.
      */
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
@@ -75,15 +72,8 @@ class AuthController extends Controller
     /**
      * Register a new user.
      */
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'role' => 'sometimes|in:user,agent',
-        ]);
-
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,

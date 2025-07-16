@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ChatStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -11,15 +12,11 @@ class Chat extends Model
 {
     use HasFactory, ChatRelationsTrait;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'uuid',
         'user_id',
         'agent_id',
+        'organization_id',
         'status',
         'queue_position',
         'started_at',
@@ -27,21 +24,14 @@ class Chat extends Model
         'metadata',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
         'metadata' => 'array',
         'queue_position' => 'integer',
+        'status' => ChatStatus::class,
     ];
 
-    /**
-     * Boot the model.
-     */
     protected static function boot()
     {
         parent::boot();
@@ -68,7 +58,7 @@ class Chat extends Model
     {
         $this->update([
             'agent_id' => $agent->id,
-            'status' => 'active',
+            'status' => ChatStatus::ACTIVE,
             'started_at' => now(),
             'queue_position' => null,
         ]);
@@ -85,7 +75,7 @@ class Chat extends Model
     public function close(): void
     {
         $this->update([
-            'status' => 'closed',
+            'status' => ChatStatus::CLOSED,
             'ended_at' => now(),
         ]);
 
@@ -108,7 +98,7 @@ class Chat extends Model
      */
     public function scopeWaiting($query)
     {
-        return $query->where('status', 'waiting');
+        return $query->where('status', ChatStatus::WAITING);
     }
 
     /**
@@ -116,7 +106,7 @@ class Chat extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('status', 'active');
+        return $query->where('status', ChatStatus::ACTIVE);
     }
 
     /**
@@ -124,6 +114,14 @@ class Chat extends Model
      */
     public function scopeClosed($query)
     {
-        return $query->where('status', 'closed');
+        return $query->where('status', ChatStatus::CLOSED);
+    }
+
+    /**
+     * Scope for chats belonging to a specific organization.
+     */
+    public function scopeForOrganization($query, int $organizationId)
+    {
+        return $query->where('organization_id', $organizationId);
     }
 }

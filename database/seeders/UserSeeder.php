@@ -4,8 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Models\Agent;
+use App\Models\Organization;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
@@ -14,16 +14,22 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create demo agent
-        $agent = User::create([
-            'name' => 'Agent Smith',
-            'email' => 'agent@demo.com',
-            'password' => Hash::make('agent123'),
-            'role' => 'agent',
-            'is_online' => true,
+        // Create a default organization for demo users
+        $defaultOrganization = Organization::factory()->create([
+            'name' => 'Demo Organization',
+            'domain' => 'demo.com',
         ]);
 
-        Agent::create([
+        // Create demo agent
+        $agent = User::factory()->agent()->create([
+            'name' => 'Agent Smith',
+            'email' => 'agent@demo.com',
+            'password' => 'agent123',
+            'is_online' => true,
+            'organization_id' => $defaultOrganization->id,
+        ]);
+
+        Agent::factory()->create([
             'user_id' => $agent->id,
             'status' => 'available',
             'max_chats' => 5,
@@ -31,24 +37,24 @@ class UserSeeder extends Seeder
         ]);
 
         // Create demo user
-        User::create([
+        User::factory()->create([
             'name' => 'Demo User',
             'email' => 'user@demo.com',
-            'password' => Hash::make('user123'),
-            'role' => 'user',
+            'password' => 'user123',
             'is_online' => true,
+            'organization_id' => $defaultOrganization->id,
         ]);
 
-        // Create additional agents
-        $agent2 = User::create([
+        // Create additional agent
+        $agent2 = User::factory()->agent()->create([
             'name' => 'Agent Johnson',
             'email' => 'agent2@demo.com',
-            'password' => Hash::make('agent123'),
-            'role' => 'agent',
+            'password' => 'agent123',
             'is_online' => true,
+            'organization_id' => $defaultOrganization->id,
         ]);
 
-        Agent::create([
+        Agent::factory()->create([
             'user_id' => $agent2->id,
             'status' => 'busy',
             'max_chats' => 3,
@@ -56,15 +62,22 @@ class UserSeeder extends Seeder
         ]);
 
         // Create admin user
-        User::create([
+        User::factory()->admin()->create([
             'name' => 'Admin User',
             'email' => 'admin@demo.com',
-            'password' => Hash::make('admin123'),
-            'role' => 'admin',
+            'password' => 'admin123',
             'is_online' => true,
+            'organization_id' => $defaultOrganization->id,
         ]);
 
         // Create some regular users
-        User::factory(10)->create();
+        User::factory(10)->create(['organization_id' => $defaultOrganization->id]);
+
+        // Create some additional agents with factories
+        User::factory(3)->agent()->create(['organization_id' => $defaultOrganization->id])->each(function ($user) {
+            Agent::factory()->create([
+                'user_id' => $user->id,
+            ]);
+        });
     }
 }

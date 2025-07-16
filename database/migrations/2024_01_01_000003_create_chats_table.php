@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ChatStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +17,8 @@ return new class extends Migration
             $table->string('uuid')->unique();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->enum('status', ['waiting', 'active', 'closed'])->default('waiting');
+            $table->foreignId('organization_id')->nullable()->constrained()->onDelete('cascade');
+            $table->string('status')->default(ChatStatus::WAITING->value);
             $table->integer('queue_position')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('ended_at')->nullable();
@@ -25,6 +27,8 @@ return new class extends Migration
 
             $table->index(['status', 'queue_position']);
             $table->index(['agent_id', 'status']);
+            $table->index('organization_id');
+            $table->index(['organization_id', 'status']);
         });
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Typing\UpdateTypingStatusRequest;
 use App\Models\Chat;
 use App\Models\TypingStatus;
 use App\Events\UserTyping;
@@ -12,12 +13,8 @@ class TypingController extends Controller
     /**
      * Update typing status for a chat.
      */
-    public function updateTypingStatus(Request $request, $chatId)
+    public function updateTypingStatus(UpdateTypingStatusRequest $request, $chatId)
     {
-        $request->validate([
-            'isTyping' => 'required|boolean',
-        ]);
-
         $chat = Chat::where('uuid', $chatId)->firstOrFail();
         $user = $request->user();
 
@@ -67,10 +64,10 @@ class TypingController extends Controller
         }
 
         $typingStatuses = TypingStatus::with('user')
-                                    ->where('chat_id', $chat->id)
-                                    ->where('user_id', '!=', $user->id) // Exclude current user
-                                    ->active()
-                                    ->get();
+            ->where('chat_id', $chat->id)
+            ->where('user_id', '!=', $user->id) // Exclude current user
+            ->active()
+            ->get();
 
         return response()->json($typingStatuses->map(function ($status) use ($chat) {
             return [

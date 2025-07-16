@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\MessageType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,8 +17,9 @@ return new class extends Migration
             $table->string('uuid')->unique();
             $table->foreignId('chat_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('organization_id')->nullable()->constrained()->onDelete('cascade');
             $table->text('content');
-            $table->enum('type', ['text', 'file', 'image', 'voice', 'system'])->default('text');
+            $table->string('type')->default(MessageType::TEXT->value);
             $table->string('file_url')->nullable();
             $table->string('file_name')->nullable();
             $table->integer('file_size')->nullable();
@@ -29,6 +31,8 @@ return new class extends Migration
 
             $table->index(['chat_id', 'created_at']);
             $table->index(['user_id', 'is_read']);
+            $table->index('organization_id');
+            $table->index(['organization_id', 'created_at']);
         });
     }
 

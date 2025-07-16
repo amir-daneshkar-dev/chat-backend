@@ -5,6 +5,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\AgentMiddleware;
+use App\Http\Middleware\ValidateApiKey;
+use App\Http\Middleware\ScopeToOrganization;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => AdminMiddleware::class,
             'agent' => AgentMiddleware::class,
+            'validate.api.key' => ValidateApiKey::class,
+            'scope.organization' => ScopeToOrganization::class,
         ]);
 
         // Add CORS middleware to handle cross-origin requests

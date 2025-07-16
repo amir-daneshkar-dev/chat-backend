@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AgentStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Relations\AgentRelationsTrait;
@@ -32,6 +33,7 @@ class Agent extends Model
         'skills' => 'array',
         'active_chats' => 'integer',
         'max_chats' => 'integer',
+        'status' => AgentStatus::class,
     ];
 
     /**
@@ -39,13 +41,13 @@ class Agent extends Model
      */
     public function canAcceptNewChat(): bool
     {
-        return $this->status === 'available' && $this->active_chats < $this->max_chats;
+        return $this->status->canAcceptChats() && $this->active_chats < $this->max_chats;
     }
 
     /**
      * Update agent status.
      */
-    public function updateStatus(string $status): void
+    public function updateStatus(AgentStatus $status): void
     {
         $this->update(['status' => $status]);
     }

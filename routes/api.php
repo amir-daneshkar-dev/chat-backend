@@ -8,6 +8,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\TypingController;
+use App\Http\Controllers\OrganizationController;
 use Illuminate\Support\Facades\Broadcast;
 
 /*
@@ -24,16 +25,31 @@ use Illuminate\Support\Facades\Broadcast;
 // Public routes
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
-Route::get('/chats/user/{email}', [ChatController::class, 'getUserChats']);
 
-// Guest chat creation (no auth required)
-Route::post('/chats', [ChatController::class, 'store']);
+// Organization management routes
+Route::post('/organizations/register', [OrganizationController::class, 'register']);
+Route::post('/organizations/validate-api-key', [OrganizationController::class, 'validateApiKey']);
+Route::get('/subscription-plans', [OrganizationController::class, 'getSubscriptionPlans']);
+
+// API key protected routes (for chat widget)
+Route::middleware('validate.api.key')->group(function () {
+    Route::get('/chats/user/{email}', [ChatController::class, 'getUserChats']);
+    Route::post('/chats', [ChatController::class, 'store']);
+});
 
 // Protected routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'scope.organization'])->group(function () {
     // Authentication
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/user', [AuthController::class, 'user']);
+
+    // Organization management
+    Route::prefix('organizations')->group(function () {
+        Route::get('/', [OrganizationController::class, 'show']);
+        Route::put('/', [OrganizationController::class, 'update']);
+        Route::post('/regenerate-api-key', [OrganizationController::class, 'regenerateApiKey']);
+        Route::get('/stats', [OrganizationController::class, 'stats']);
+    });
 
     // Chats
     Route::get('/chats', [ChatController::class, 'index']);

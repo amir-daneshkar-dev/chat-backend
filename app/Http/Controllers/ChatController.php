@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ChatStatus;
+use App\Enums\UserRole;
+use App\Http\Requests\Chat\CreateChatRequest;
+use App\Http\Requests\Chat\UpdateChatRequest;
 use App\Models\Chat;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -25,17 +29,22 @@ class ChatController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $organizationId = $request->attributes->get('organization_id');
 
         if ($user->isAgent()) {
-            // Return chats assigned to this agent
+            // Return chats assigned to this agent within their organization
             $chats = Chat::with(['user', 'agent', 'messages', 'latestMessage'])
-                ->where('agent_id', $user->id)
-                ->orWhere('status', 'waiting')
+                ->forOrganization($organizationId)
+                ->where(function ($query) use ($user) {
+                    $query->where('agent_id', $user->id)
+                        ->orWhere('status', 'waiting');
+                })
                 ->orderBy('updated_at', 'desc')
                 ->get();
         } else {
-            // Return chats for this user
+            // Return chats for this user within their organization
             $chats = Chat::with(['user', 'agent', 'messages', 'latestMessage'])
+                ->forOrganization($organizationId)
                 ->where('user_id', $user->id)
                 ->orderBy('updated_at', 'desc')
                 ->get();
@@ -49,19 +58,18 @@ class ChatController extends Controller
     /**
      * Create a new chat.
      */
-    public function store(Request $request)
+    public function store(CreateChatRequest $request)
     {
-        $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|max:255',
-        ]);
-
         $user = $request->user();
+
+        $organizationId = $request->attributes->get('organization_id');
 
         // If no user is authenticated, create a guest user
         if (!$user) {
-            // Check if user already exists by email
-            $user = User::where('email', $request->email)->first();
+            // Check if user already exists by email within the organization
+            $user = User::where('email', $request->email)
+                ->where('organization_id', $organizationId)
+                ->first();
 
             if (!$user) {
                 // Create new user only if doesn't exist
@@ -69,7 +77,8 @@ class ChatController extends Controller
                     'name' => $request->name ?? 'Guest User',
                     'email' => $request->email ?? 'guest@example.com',
                     'password' => Hash::make('temporary'),
-                    'role' => 'user',
+                    'role' => UserRole::USER,
+                    'organization_id' => $organizationId,
                 ]);
             } else {
                 // Update user name if provided and different
@@ -81,13 +90,14 @@ class ChatController extends Controller
 
         // Generate a token for guest users (expires in 1 hour)
         $token = null;
-        if ($user->role === 'user') { // or check for guest logic
+        if ($user->role === UserRole::USER) { // or check for guest logic
             $token = $user->createToken('guest-token', ['*'], now()->addHour())->plainTextToken;
         }
 
-        // Check if user already has an active or waiting chat
+        // Check if user already has an active or waiting chat within the organization
         $existingChat = Chat::where('user_id', $user->id)
-            ->whereIn('status', ['waiting', 'active'])
+            ->where('organization_id', $organizationId)
+            ->whereIn('status', [ChatStatus::WAITING, ChatStatus::ACTIVE])
             ->with(['user', 'agent', 'messages', 'latestMessage'])
             ->first();
 
@@ -113,8 +123,11 @@ class ChatController extends Controller
      */
     public function show(Request $request, $chatId)
     {
+        $organizationId = $request->attributes->get('organization_id');
+
         $chat = Chat::with(['user', 'agent', 'messages.user'])
             ->where('uuid', $chatId)
+            ->where('organization_id', $organizationId)
             ->firstOrFail();
 
         // Check if user has access to this chat
@@ -129,13 +142,13 @@ class ChatController extends Controller
     /**
      * Update a chat.
      */
-    public function update(Request $request, $chatId)
+    public function update(UpdateChatRequest $request, $chatId)
     {
-        $request->validate([
-            'status' => 'sometimes|in:waiting,active,closed',
-        ]);
+        $organizationId = $request->attributes->get('organization_id');
 
-        $chat = Chat::where('uuid', $chatId)->firstOrFail();
+        $chat = Chat::where('uuid', $chatId)
+            ->where('organization_id', $organizationId)
+            ->firstOrFail();
 
         // Check if user has access to this chat
         $user = $request->user();
@@ -144,10 +157,11 @@ class ChatController extends Controller
         }
 
         if ($request->has('status')) {
-            if ($request->status === 'closed') {
+            $status = ChatStatus::from($request->status);
+            if ($status === ChatStatus::CLOSED) {
                 $chat->close();
             } else {
-                $chat->update(['status' => $request->status]);
+                $chat->update(['status' => $status]);
             }
         }
 
@@ -161,7 +175,11 @@ class ChatController extends Controller
      */
     public function destroy(Request $request, $chatId)
     {
-        $chat = Chat::where('uuid', $chatId)->firstOrFail();
+        $organizationId = $request->attributes->get('organization_id');
+
+        $chat = Chat::where('uuid', $chatId)
+            ->where('organization_id', $organizationId)
+            ->firstOrFail();
 
         // Check if user has access to this chat
         $user = $request->user();
@@ -179,7 +197,11 @@ class ChatController extends Controller
      */
     public function getUserChats(Request $request, $email)
     {
-        $user = User::where('email', $email)->first();
+        $organizationId = $request->attributes->get('organization_id');
+
+        $user = User::where('email', $email)
+            ->where('organization_id', $organizationId)
+            ->first();
 
         if (!$user) {
             return response()->json([]);
@@ -187,9 +209,9 @@ class ChatController extends Controller
 
         $chats = Chat::with(['user', 'agent', 'messages', 'latestMessage'])
             ->where('user_id', $user->id)
+            ->where('organization_id', $organizationId)
             ->orderBy('updated_at', 'desc')
             ->get();
-
 
         return response()->json($chats->map(function ($chat) {
             return $this->formatChatResponse($chat);

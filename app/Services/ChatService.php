@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\AgentStatus;
+use App\Enums\ChatStatus;
+use App\Enums\MessageType;
 use App\Models\Chat;
 use App\Models\User;
 use App\Models\Message;
@@ -18,12 +21,15 @@ class ChatService
      */
     public function createChat(User $user): Chat
     {
-        // Get queue position
-        $queuePosition = Chat::waiting()->count() + 1;
+        // Get queue position within the organization
+        $queuePosition = Chat::waiting()
+            ->where('organization_id', $user->organization_id)
+            ->count() + 1;
 
         $chat = Chat::create([
             'user_id' => $user->id,
-            'status' => 'waiting',
+            'organization_id' => $user->organization_id,
+            'status' => ChatStatus::WAITING,
             'queue_position' => $queuePosition,
         ]);
 
@@ -69,11 +75,15 @@ class ChatService
     /**
      * Update queue positions for waiting chats.
      */
-    public function updateQueuePositions(): void
+    public function updateQueuePositions(?int $organizationId = null): void
     {
-        $waitingChats = Chat::waiting()
-            ->orderBy('created_at')
-            ->get();
+        $query = Chat::waiting()->orderBy('created_at');
+
+        if ($organizationId) {
+            $query->where('organization_id', $organizationId);
+        }
+
+        $waitingChats = $query->get();
 
         foreach ($waitingChats as $index => $chat) {
             $chat->updateQueuePosition($index + 1);
@@ -83,11 +93,12 @@ class ChatService
     /**
      * Find available agent for chat assignment.
      */
-    public function findAvailableAgent(): ?User
+    public function findAvailableAgent(int $organizationId): ?User
     {
         return User::whereHas('agent', function ($query) {
-            $query->where('status', 'available');
+            $query->where('status', AgentStatus::AVAILABLE);
         })
+            ->where('organization_id', $organizationId)
             ->with('agent')
             ->get()
             ->filter(function ($user) {
@@ -100,14 +111,18 @@ class ChatService
     /**
      * Auto-assign waiting chats to available agents.
      */
-    public function autoAssignChats(): void
+    public function autoAssignChats(?int $organizationId = null): void
     {
-        $waitingChats = Chat::waiting()
-            ->orderBy('created_at')
-            ->get();
+        $query = Chat::waiting()->orderBy('created_at');
+
+        if ($organizationId) {
+            $query->where('organization_id', $organizationId);
+        }
+
+        $waitingChats = $query->get();
 
         foreach ($waitingChats as $chat) {
-            $agent = $this->findAvailableAgent();
+            $agent = $this->findAvailableAgent($organizationId ?? $chat->organization_id);
 
             if ($agent) {
                 $this->assignChatToAgent($chat, $agent);
@@ -126,7 +141,7 @@ class ChatService
             'chat_id' => $chat->id,
             'user_id' => $chat->user_id, // Use chat user as sender for system messages
             'content' => $content,
-            'type' => 'system',
+            'type' => MessageType::SYSTEM,
             'is_read' => false,
         ]);
     }

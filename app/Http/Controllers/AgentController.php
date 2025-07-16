@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AgentStatus;
+use App\Enums\ChatStatus;
+use App\Http\Requests\Agent\UpdateAgentStatusRequest;
 use App\Models\Chat;
 use App\Models\Agent;
 use App\Services\ChatService;
@@ -22,13 +25,15 @@ class AgentController extends Controller
     public function getChats(Request $request)
     {
         $user = $request->user();
+        $organizationId = $request->attributes->get('organization_id');
 
         if (!$user->isAgent()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Get all chats (assigned to agent + waiting)
+        // Get all chats within the organization (assigned to agent + waiting)
         $chats = Chat::with(['user', 'agent', 'messages', 'latestMessage'])
+            ->forOrganization($organizationId)
             ->where(function ($query) use ($user) {
                 $query->where('agent_id', $user->id)
                     ->orWhere('status', 'waiting');
@@ -54,9 +59,13 @@ class AgentController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $chat = Chat::where('uuid', $chatId)->firstOrFail();
+        $organizationId = $request->attributes->get('organization_id');
 
-        if ($chat->status !== 'waiting') {
+        $chat = Chat::where('uuid', $chatId)
+            ->where('organization_id', $organizationId)
+            ->firstOrFail();
+
+        if ($chat->status !== ChatStatus::WAITING) {
             return response()->json(['message' => 'Chat is not available for assignment'], 422);
         }
 
@@ -73,22 +82,19 @@ class AgentController extends Controller
     /**
      * Update agent status.
      */
-    public function updateStatus(Request $request)
+    public function updateStatus(UpdateAgentStatusRequest $request)
     {
-        $request->validate([
-            'status' => 'required|in:available,busy,offline',
-        ]);
-
         $user = $request->user();
 
         if (!$user->isAgent()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $user->agent->updateStatus($request->status);
+        $status = AgentStatus::from($request->status);
+        $user->agent->updateStatus($status);
 
         return response()->json([
-            'status' => $request->status,
+            'status' => $status->value,
             'message' => 'Status updated successfully',
         ]);
     }
@@ -104,14 +110,22 @@ class AgentController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $organizationId = $request->attributes->get('organization_id');
+
         $stats = [
             'activeChats' => Chat::where('agent_id', $user->id)
-                ->where('status', 'active')
+                ->where('organization_id', $organizationId)
+                ->where('status', ChatStatus::ACTIVE)
                 ->count(),
-            'totalChats' => Chat::where('agent_id', $user->id)->count(),
-            'waitingChats' => Chat::where('status', 'waiting')->count(),
+            'totalChats' => Chat::where('agent_id', $user->id)
+                ->where('organization_id', $organizationId)
+                ->count(),
+            'waitingChats' => Chat::where('status', ChatStatus::WAITING)
+                ->where('organization_id', $organizationId)
+                ->count(),
             'closedToday' => Chat::where('agent_id', $user->id)
-                ->where('status', 'closed')
+                ->where('organization_id', $organizationId)
+                ->where('status', ChatStatus::CLOSED)
                 ->whereDate('ended_at', today())
                 ->count(),
         ];
@@ -130,7 +144,11 @@ class AgentController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $chat = Chat::where('uuid', $chatId)->firstOrFail();
+        $organizationId = $request->attributes->get('organization_id');
+
+        $chat = Chat::where('uuid', $chatId)
+            ->where('organization_id', $organizationId)
+            ->firstOrFail();
 
         if ($chat->agent_id !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
