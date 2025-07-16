@@ -48,6 +48,14 @@ class ValidateApiKey
             ], 403);
         }
 
+        // check the request origin to match the organization domain
+        if ($request->header('Origin') !== $organization->domain) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid origin',
+            ], 403);
+        }
+
         // Set organization in request for later use
         $request->attributes->set('organization', $organization);
         $request->attributes->set('organization_id', $organization->id);

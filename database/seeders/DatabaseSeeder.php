@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             ApplicationSetupSeeder::class,  // Creates initial organization, admin, and agent
+            UserSeeder::class,              // Creates demo users with expected emails
             ChatSeeder::class,              // Creates chats for the default organization
             DemoDataSeeder::class,          // Creates additional organizations and data
         ]);
